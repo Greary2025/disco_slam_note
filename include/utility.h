@@ -14,7 +14,11 @@
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
-#include <opencv/cv.h>
+// OpenCV头文件引用 (OpenCV4标准引用方式)
+#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>

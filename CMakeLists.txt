@@ -1,42 +1,52 @@
+# 设置C++标准为14并设为必需
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# 设置CMake最低版本要求
 cmake_minimum_required(VERSION 3.5)
+# 定义项目名称
 project(disco_slam)
 
+# 设置构建类型为Release
 set(CMAKE_BUILD_TYPE "Release")
+# 设置C++编译标志
 set(CMAKE_CXX_FLAGS "-std=c++14")
+# 设置Release模式的编译优化选项
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g -pthread")
 
+# 查找catkin包及其组件
 find_package(catkin REQUIRED COMPONENTS
-  tf
-  roscpp
-  rospy
-  cv_bridge
-  # pcl library
+  tf       # TF变换
+  roscpp   # ROS C++接口
+  rospy    # ROS Python接口
+  cv_bridge # OpenCV桥接
+  # pcl库相关
   pcl_conversions
-  # msgs
+  # ROS消息类型
   std_msgs
   sensor_msgs
   geometry_msgs
   nav_msgs
-  message_generation
+  message_generation # 消息生成
 )
 
-find_package(OpenMP REQUIRED)
-find_package(PCL REQUIRED QUIET)
-find_package(OpenCV REQUIRED QUIET)
-find_package(GTSAM REQUIRED QUIET)
-find_package(Eigen3 REQUIRED)
-find_package(libnabo REQUIRED)
+# 查找其他依赖包
+find_package(OpenMP REQUIRED)   # OpenMP并行计算
+find_package(PCL REQUIRED QUIET) # PCL点云库
+find_package(OpenCV REQUIRED QUIET) # OpenCV
+find_package(GTSAM REQUIRED QUIET) # GTSAM库
+find_package(Eigen3 REQUIRED)   # Eigen数学库
+find_package(libnabo REQUIRED)  # libnabo库
 
+# 添加自定义消息文件
 add_message_files(
   DIRECTORY msg
   FILES
-  cloud_info.msg
-  context_info.msg
+  cloud_info.msg    # 点云信息消息
+  context_info.msg  # 上下文信息消息
 )
 
+# 生成消息
 generate_messages(
   DEPENDENCIES
   geometry_msgs
@@ -45,11 +55,12 @@ generate_messages(
   sensor_msgs
 )
 
+# 定义catkin包属性
 catkin_package(
-  INCLUDE_DIRS include
-  DEPENDS PCL GTSAM
-
-  CATKIN_DEPENDS 
+  INCLUDE_DIRS include  # 包含目录
+  DEPENDS PCL GTSAM     # 外部依赖
+  
+  CATKIN_DEPENDS        # catkin依赖
   std_msgs
   nav_msgs
   geometry_msgs
@@ -58,30 +69,30 @@ catkin_package(
   message_generation
 )
 
-# include directories
+# 设置包含目录
 include_directories(
-	include
-	${catkin_INCLUDE_DIRS}
-	${PCL_INCLUDE_DIRS}
-    ${OpenCV_INCLUDE_DIRS}
-	${GTSAM_INCLUDE_DIR}
-	src/DiSCo-SLAM/third_parties
+	include  # 项目头文件目录
+	${catkin_INCLUDE_DIRS}  # catkin包含目录
+	${PCL_INCLUDE_DIRS}     # PCL包含目录
+  ${OpenCV_INCLUDE_DIRS}  # OpenCV包含目录
+	${GTSAM_INCLUDE_DIR}    # GTSAM包含目录
+	src/DiSCo-SLAM/third_parties  # 第三方库目录
 )
 
-# link directories
+# 设置链接目录
 link_directories(
-	include
-	${PCL_LIBRARY_DIRS}
-    ${OpenCV_LIBRARY_DIRS}
-    ${GTSAM_LIBRARY_DIRS}
+	include  # 项目库目录
+	${PCL_LIBRARY_DIRS}    # PCL库目录
+  ${OpenCV_LIBRARY_DIRS} # OpenCV库目录
+  ${GTSAM_LIBRARY_DIRS}  # GTSAM库目录
 )
 
 ###########
-## Build ##
+## 构建 ##
 ###########
 
-#for fushion
-# Maximum Clique Solver
+# 用于融合
+# 最大团求解器
 add_library(fast_max-clique_finder
 	src/DiSCo-SLAM/third_parties/fast_max-clique_finder/src/findClique.h
 	src/DiSCo-SLAM/third_parties/fast_max-clique_finder/src/graphIO.h
@@ -92,38 +103,39 @@ add_library(fast_max-clique_finder
 	)
 target_compile_options(fast_max-clique_finder PRIVATE -w)
 
+# 扫描上下文库
 add_library(scan_context
 	src/DiSCo-SLAM/third_parties/scanContext/scanContext.h
 	src/DiSCo-SLAM/third_parties/scanContext/scanContext.cpp
-	)
+)
 
-
-# Range Image Projection
+# 点云投影节点
 add_executable(${PROJECT_NAME}_imageProjection src/imageProjection.cpp)
 add_dependencies(${PROJECT_NAME}_imageProjection ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
 target_link_libraries(${PROJECT_NAME}_imageProjection ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
 
-# Feature Association
+# 特征提取节点
 add_executable(${PROJECT_NAME}_featureExtraction src/featureExtraction.cpp)
 add_dependencies(${PROJECT_NAME}_featureExtraction ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
 target_link_libraries(${PROJECT_NAME}_featureExtraction ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
 
-# Mapping Optimization
+# 地图优化节点
 add_executable(${PROJECT_NAME}_mapOptmization src/mapOptmization.cpp)
 add_dependencies(${PROJECT_NAME}_mapOptmization ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
 target_compile_options(${PROJECT_NAME}_mapOptmization PRIVATE ${OpenMP_CXX_FLAGS})
 target_link_libraries(${PROJECT_NAME}_mapOptmization ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${OpenMP_CXX_FLAGS} gtsam)
 
-# IMU Preintegration
+# IMU预积分节点
 add_executable(${PROJECT_NAME}_imuPreintegration src/imuPreintegration.cpp)
 target_link_libraries(${PROJECT_NAME}_imuPreintegration ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} gtsam)
 
-# Map Fushion
+# 地图融合节点
 add_executable(${PROJECT_NAME}_mapFusion src/DiSCo-SLAM/mapFusion.cpp)
 add_dependencies(${PROJECT_NAME}_mapFusion ${catkin_EXPORTED_TARGETS}  ${PROJECT_NAME}_generate_messages_cpp)
 target_link_libraries(${PROJECT_NAME}_mapFusion ${catkin_LIBRARIES}
 		${PCL_LIBRARIES} libnabo::nabo
 		gtsam fast_max-clique_finder scan_context)
 
+# 安装Python脚本(已注释)
 #catkin_install_python(PROGRAMS scripts/listener.py
 #	DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
