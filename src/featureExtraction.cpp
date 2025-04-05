@@ -1,5 +1,5 @@
 #include "utility.h"
-#include "lio_sam/cloud_info.h"
+#include "disco_slam/cloud_info.h"
 
 struct smoothness_t{ 
     float value;
@@ -29,7 +29,7 @@ public:
 
     pcl::VoxelGrid<PointType> downSizeFilter;
 
-    lio_sam::cloud_info cloudInfo;
+    disco_slam::cloud_info cloudInfo;
     std_msgs::Header cloudHeader;
 
     std::vector<smoothness_t> cloudSmoothness;
@@ -39,11 +39,11 @@ public:
 
     FeatureExtraction()
     {
-        subLaserCloudInfo = nh.subscribe<lio_sam::cloud_info>(robot_id + "/lio_sam/deskew/cloud_info", 1, &FeatureExtraction::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
+        subLaserCloudInfo = nh.subscribe<disco_slam::cloud_info>(robot_id + "/disco_slam/deskew/cloud_info", 1, &FeatureExtraction::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
-        pubLaserCloudInfo = nh.advertise<lio_sam::cloud_info> (robot_id + "/lio_sam/feature/cloud_info", 1);
-        pubCornerPoints = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/lio_sam/feature/cloud_corner", 1);
-        pubSurfacePoints = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/lio_sam/feature/cloud_surface", 1);
+        pubLaserCloudInfo = nh.advertise<disco_slam::cloud_info> (robot_id + "/disco_slam/feature/cloud_info", 1);
+        pubCornerPoints = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/feature/cloud_corner", 1);
+        pubSurfacePoints = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/feature/cloud_surface", 1);
         
         initializationValue();
     }
@@ -63,7 +63,7 @@ public:
         cloudLabel = new int[N_SCAN*Horizon_SCAN];
     }
 
-    void laserCloudInfoHandler(const lio_sam::cloud_infoConstPtr& msgIn)
+    void laserCloudInfoHandler(const disco_slam::cloud_infoConstPtr& msgIn)
     {
 
         cloudInfo = *msgIn; // new cloud info//for
@@ -261,7 +261,7 @@ public:
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "lio_sam");
+    ros::init(argc, argv, "disco_slam");
 
     FeatureExtraction FE;
 

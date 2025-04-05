@@ -1,6 +1,6 @@
 <launch>
     <arg name="no"/>
-    <arg name="project" default="lio_sam"/>
+    <arg name="project" default="disco_slam"/>
     <arg name="robot"   default="jackal0"/>
     <arg name="id1"     default="jackal1"/>
     <arg name="id2"     default="jackal2"/>
@@ -29,7 +29,7 @@
        <param name="/id_1"              type="string" value = "$(arg id1)"  />
        <param name="/id_2"              type="string" value = "$(arg id2)"  />
        <param name="/no"                type="int"    value = "$(arg no)"   />
-       <param name="/pcm_matrix_folder" type="string" value="$(find lio_sam)/config"/>
+       <param name="/pcm_matrix_folder" type="string" value="$(find disco_slam)/config"/>
    </node>
 
 

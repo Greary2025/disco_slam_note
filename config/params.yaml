@@ -1,4 +1,4 @@
-lio_sam:
+disco_slam:
 # must have imu topic
   # Topics
   pointCloudTopic: "points_raw"               # Point cloud data

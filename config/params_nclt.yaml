@@ -1,4 +1,4 @@
-lio_sam:
+disco_slam:
 
   # Topics
   pointCloudTopic: "points_raw"               # Point cloud data

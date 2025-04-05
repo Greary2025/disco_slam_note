@@ -11,7 +11,7 @@ mapfusion:
         #topic
         sc_topic: "context"
         sc_frame: "base_link"
-        local_topic: "lio_sam/mapping/cloud_info"
+        local_topic: "disco_slam/mapping/cloud_info"
 
         #thres
         loop_threshold: 0.2

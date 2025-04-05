@@ -175,7 +175,7 @@ Visualization Manager:
             Shaft Length: 1
             Shaft Radius: 0.05000000074505806
             Value: Axes
-          Topic: /lio_sam/mapping/odometry
+          Topic: /disco_slam/mapping/odometry
           Unreliable: false
           Value: false
       Enabled: false
@@ -207,7 +207,7 @@ Visualization Manager:
           Size (Pixels): 2
           Size (m): 0.009999999776482582
           Style: Points
-          Topic: /jackal0/lio_sam/deskew/cloud_deskewed
+          Topic: /jackal0/disco_slam/deskew/cloud_deskewed
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -237,7 +237,7 @@ Visualization Manager:
           Size (Pixels): 3
           Size (m): 0.009999999776482582
           Style: Points
-          Topic: /lio_sam/mapping/cloud_registered
+          Topic: /disco_slam/mapping/cloud_registered
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -267,7 +267,7 @@ Visualization Manager:
           Size (Pixels): 2
           Size (m): 0.009999999776482582
           Style: Points
-          Topic: /jackal1/lio_sam/deskew/cloud_deskewed
+          Topic: /jackal1/disco_slam/deskew/cloud_deskewed
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -301,7 +301,7 @@ Visualization Manager:
           Size (Pixels): 5
           Size (m): 0.009999999776482582
           Style: Points
-          Topic: /lio_sam/feature/cloud_corner
+          Topic: /disco_slam/feature/cloud_corner
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -331,7 +331,7 @@ Visualization Manager:
           Size (Pixels): 3
           Size (m): 0.009999999776482582
           Style: Points
-          Topic: /lio_sam/feature/cloud_surface
+          Topic: /disco_slam/feature/cloud_surface
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -420,7 +420,7 @@ Visualization Manager:
           Radius: 0.029999999329447746
           Shaft Diameter: 0.10000000149011612
           Shaft Length: 0.10000000149011612
-          Topic: /jackal0/lio_sam/mapping/path
+          Topic: /jackal0/disco_slam/mapping/path
           Unreliable: false
           Value: true
         - Alpha: 1
@@ -448,7 +448,7 @@ Visualization Manager:
           Size (Pixels): 1
           Size (m): 0.009999999776482582
           Style: Points
-          Topic: /jackal0/lio_sam/mapping/map_global
+          Topic: /jackal0/disco_slam/mapping/map_global
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -482,7 +482,7 @@ Visualization Manager:
           Size (Pixels): 1
           Size (m): 0.009999999776482582
           Style: Points
-          Topic: /jackal1/lio_sam/mapping/map_global
+          Topic: /jackal1/disco_slam/mapping/map_global
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -507,7 +507,7 @@ Visualization Manager:
           Radius: 0.029999999329447746
           Shaft Diameter: 0.10000000149011612
           Shaft Length: 0.10000000149011612
-          Topic: /jackal1/lio_sam/imu/path
+          Topic: /jackal1/disco_slam/imu/path
           Unreliable: false
           Value: true
         - Alpha: 1
@@ -530,7 +530,7 @@ Visualization Manager:
           Radius: 0.029999999329447746
           Shaft Diameter: 0.10000000149011612
           Shaft Length: 0.10000000149011612
-          Topic: /jackal1/lio_sam/mapping/path
+          Topic: /jackal1/disco_slam/mapping/path
           Unreliable: false
           Value: true
         - Alpha: 1
@@ -682,7 +682,7 @@ Visualization Manager:
           Size (Pixels): 1
           Size (m): 0.009999999776482582
           Style: Points
-          Topic: /jackal2/lio_sam/mapping/map_global
+          Topic: /jackal2/disco_slam/mapping/map_global
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -707,7 +707,7 @@ Visualization Manager:
           Radius: 0.029999999329447746
           Shaft Diameter: 0.10000000149011612
           Shaft Length: 0.10000000149011612
-          Topic: /jackal2/lio_sam/imu/path
+          Topic: /jackal2/disco_slam/imu/path
           Unreliable: false
           Value: true
         - Alpha: 1
@@ -730,7 +730,7 @@ Visualization Manager:
           Radius: 0.029999999329447746
           Shaft Diameter: 0.10000000149011612
           Shaft Length: 0.10000000149011612
-          Topic: /jackal2/lio_sam/mapping/path
+          Topic: /jackal2/disco_slam/mapping/path
           Unreliable: false
           Value: true
       Enabled: true

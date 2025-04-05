@@ -3,8 +3,8 @@
 //
 
 //msg
-#include "lio_sam/cloud_info.h"
-#include "lio_sam/context_info.h"
+#include "disco_slam/cloud_info.h"
+#include "disco_slam/context_info.h"
 
 //third party
 #include "scanContext/scanContext.h"
@@ -127,8 +127,8 @@ private:
     std::string _robot_initial;
     std::string _pcm_matrix_folder;
 
-    lio_sam::cloud_info   _cloud_info;
-//    lio_sam::context_info _context_info;
+    disco_slam::cloud_info   _cloud_info;
+//    disco_slam::context_info _context_info;
     std::vector<ScanContextBin> _context_list_to_publish_1;
     std::vector<ScanContextBin> _context_list_to_publish_2;
 
@@ -147,7 +147,7 @@ private:
     std::pair<int, int> _initial_loop;
     int _id_bin_last;
 
-    lio_sam::context_info _loop_info;
+    disco_slam::context_info _loop_info;
     std_msgs::Header _cloud_header;
 
     pcl::PointCloud<PointType>::Ptr _laser_cloud_sum;
@@ -189,23 +189,23 @@ public:
         ParamLoader();
         initialization();
 
-        _sub_communication_signal = nh.subscribe<std_msgs::Bool>(_robot_id + "/lio_sam/signal",
+        _sub_communication_signal = nh.subscribe<std_msgs::Bool>(_robot_id + "/disco_slam/signal",
                  100, &MapFusion::communicationSignalHandler, this, ros::TransportHints().tcpNoDelay());
 
-        _sub_signal_1 = nh.subscribe<std_msgs::Bool>(_signal_id_1 + "/lio_sam/signal",
+        _sub_signal_1 = nh.subscribe<std_msgs::Bool>(_signal_id_1 + "/disco_slam/signal",
                  100, &MapFusion::signalHandler1, this, ros::TransportHints().tcpNoDelay());
-        _sub_signal_2 = nh.subscribe<std_msgs::Bool>(_signal_id_2 + "/lio_sam/signal",
+        _sub_signal_2 = nh.subscribe<std_msgs::Bool>(_signal_id_2 + "/disco_slam/signal",
                  100, &MapFusion::signalHandler2, this, ros::TransportHints().tcpNoDelay());
 
-        _sub_laser_cloud_info = nh.subscribe<lio_sam::cloud_info>(_robot_id + "/" + _local_topic,
+        _sub_laser_cloud_info = nh.subscribe<disco_slam::cloud_info>(_robot_id + "/" + _local_topic,
                 1, &MapFusion::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
-        _sub_loop_info_global = nh.subscribe<lio_sam::context_info>(_sc_topic + "/loop_info_global",
+        _sub_loop_info_global = nh.subscribe<disco_slam::context_info>(_sc_topic + "/loop_info_global",
                             100, &MapFusion::globalLoopInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
 
         if(_robot_id != _robot_initial){
-            _sub_scan_context_info = nh.subscribe<lio_sam::context_info>(_sc_topic + "/context_info",
+            _sub_scan_context_info = nh.subscribe<disco_slam::context_info>(_sc_topic + "/context_info",
                 20, &MapFusion::scanContextInfoHandler, this, ros::TransportHints().tcpNoDelay());//number of buffer may differs for different robot numbers
             _sub_odom_trans = nh.subscribe<nav_msgs::Odometry>(_sc_topic + "/trans_odom",
                            20, &MapFusion::OdomTransHandler, this, ros::TransportHints().tcpNoDelay());
@@ -214,12 +214,12 @@ public:
 
 
 
-        _pub_context_info     = nh.advertise<lio_sam::context_info> (_sc_topic + "/context_info", 1);
-        _pub_loop_info        = nh.advertise<lio_sam::context_info> (_robot_id + "/" + _sc_topic + "/loop_info", 1);
+        _pub_context_info     = nh.advertise<disco_slam::context_info> (_sc_topic + "/context_info", 1);
+        _pub_loop_info        = nh.advertise<disco_slam::context_info> (_robot_id + "/" + _sc_topic + "/loop_info", 1);
         _pub_cloud            = nh.advertise<sensor_msgs::PointCloud2> (_robot_id + "/" + _sc_topic + "/cloud", 1);
         _pub_trans_odom2map   = nh.advertise<nav_msgs::Odometry> ( _robot_id + "/" + _sc_topic + "/trans_map", 1);
         _pub_trans_odom2odom  = nh.advertise<nav_msgs::Odometry> ( _sc_topic + "/trans_odom", 1);
-        _pub_loop_info_global = nh.advertise<lio_sam::context_info>(_sc_topic + "/loop_info_global", 1);
+        _pub_loop_info_global = nh.advertise<disco_slam::context_info>(_sc_topic + "/loop_info_global", 1);
 
     }
 
@@ -320,7 +320,7 @@ private:
         return robo.back() - '0';
     }
 
-    void laserCloudInfoHandler(const lio_sam::cloud_infoConstPtr& msgIn)
+    void laserCloudInfoHandler(const disco_slam::cloud_infoConstPtr& msgIn)
     {
         _laser_cloud_sum->clear();
         _laser_cloud_feature->clear();
@@ -377,7 +377,7 @@ private:
     }
 
     void publishContextInfo( ScanContextBin bin , std::string robot_to){
-        lio_sam::context_info context_info;
+        disco_slam::context_info context_info;
         context_info.robotID = _robot_id;
 
         context_info.numRing = _knn_feature_dim;
@@ -446,7 +446,7 @@ private:
 
     }
 
-    void globalLoopInfoHandler(const lio_sam::context_infoConstPtr& msgIn){
+    void globalLoopInfoHandler(const disco_slam::context_infoConstPtr& msgIn){
 //        return;
         if (msgIn->robotID != _robot_id)
             return;
@@ -619,8 +619,8 @@ private:
         }
     }
 
-    void scanContextInfoHandler(const lio_sam::context_infoConstPtr& msgIn){
-        lio_sam::context_info context_info_input = *msgIn;
+    void scanContextInfoHandler(const disco_slam::context_infoConstPtr& msgIn){
+        disco_slam::context_info context_info_input = *msgIn;
         //load the data received
         if (!_communication_signal)
             return;

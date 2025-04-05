@@ -1,6 +1,6 @@
 #include "utility.h"
-#include "lio_sam/cloud_info.h"
-#include "lio_sam/context_info.h"
+#include "disco_slam/cloud_info.h"
+#include "disco_slam/context_info.h"
 
 #include <gtsam/geometry/Rot3.h>
 #include <gtsam/geometry/Pose3.h>
@@ -78,7 +78,7 @@ public:
 
     //publish to fusion node
 //    ros::Publisher pubCloudInfoWithPose;
-//    lio_sam::cloud_info cloudInfoWithPose;
+//    disco_slam::cloud_info cloudInfoWithPose;
 //    std_msgs::Header cloudHeader;
     ros::Subscriber subGlobalLoop;
     ros::Publisher pubFeatureCloud;
@@ -90,7 +90,7 @@ public:
     ros::Subscriber subLoop;
 
     std::deque<nav_msgs::Odometry> gpsQueue;
-    lio_sam::cloud_info cloudInfo;
+    disco_slam::cloud_info cloudInfo;
 
     vector<pcl::PointCloud<PointType>::Ptr> cornerCloudKeyFrames;
     vector<pcl::PointCloud<PointType>::Ptr> surfCloudKeyFrames;
@@ -170,33 +170,33 @@ public:
         parameters.relinearizeSkip = 1;
         isam = new ISAM2(parameters);
 
-        pubKeyPoses                 = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/lio_sam/mapping/trajectory", 1);
-        pubLaserCloudSurround       = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/lio_sam/mapping/map_global", 1);
-        pubLaserOdometryGlobal      = nh.advertise<nav_msgs::Odometry> (robot_id + "/lio_sam/mapping/odometry", 1);
-        pubLaserOdometryIncremental = nh.advertise<nav_msgs::Odometry> (robot_id + "/lio_sam/mapping/odometry_incremental", 1);
-        pubPath                     = nh.advertise<nav_msgs::Path>(robot_id + "/lio_sam/mapping/path", 1);
+        pubKeyPoses                 = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/trajectory", 1);
+        pubLaserCloudSurround       = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/map_global", 1);
+        pubLaserOdometryGlobal      = nh.advertise<nav_msgs::Odometry> (robot_id + "/disco_slam/mapping/odometry", 1);
+        pubLaserOdometryIncremental = nh.advertise<nav_msgs::Odometry> (robot_id + "/disco_slam/mapping/odometry_incremental", 1);
+        pubPath                     = nh.advertise<nav_msgs::Path>(robot_id + "/disco_slam/mapping/path", 1);
 
 
         //for fusion node
         //for
-//        pubCloudInfoWithPose        = nh.advertise<lio_sam::cloud_info> (robot_id + "/lio_sam/mapping/cloud_info", 1);
-        pubFeatureCloud = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/lio_sam/mapping/feature_cloud_global", 1);
-        subGlobalLoop = nh.subscribe<lio_sam::context_info>(robot_id + "/context/loop_info", 100, &mapOptimization::contextLoopInfoHandler, this, ros::TransportHints().tcpNoDelay());
+//        pubCloudInfoWithPose        = nh.advertise<disco_slam::cloud_info> (robot_id + "/disco_slam/mapping/cloud_info", 1);
+        pubFeatureCloud = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/feature_cloud_global", 1);
+        subGlobalLoop = nh.subscribe<disco_slam::context_info>(robot_id + "/context/loop_info", 100, &mapOptimization::contextLoopInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
-        subCloud = nh.subscribe<lio_sam::cloud_info>(robot_id + "/lio_sam/feature/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
+        subCloud = nh.subscribe<disco_slam::cloud_info>(robot_id + "/disco_slam/feature/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
         subGPS   = nh.subscribe<nav_msgs::Odometry> (gpsTopic, 200, &mapOptimization::gpsHandler, this, ros::TransportHints().tcpNoDelay());
         subLoop  = nh.subscribe<std_msgs::Float64MultiArray>(robot_id + "/lio_loop/loop_closure_detection", 1, &mapOptimization::loopInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
-        pubHistoryKeyFrames   = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/lio_sam/mapping/icp_loop_closure_history_cloud", 1);
-        pubIcpKeyFrames       = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/lio_sam/mapping/icp_loop_closure_corrected_cloud", 1);
-        pubLoopConstraintEdge = nh.advertise<visualization_msgs::MarkerArray>(robot_id + "/lio_sam/mapping/loop_closure_constraints", 1);
+        pubHistoryKeyFrames   = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/icp_loop_closure_history_cloud", 1);
+        pubIcpKeyFrames       = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/icp_loop_closure_corrected_cloud", 1);
+        pubLoopConstraintEdge = nh.advertise<visualization_msgs::MarkerArray>(robot_id + "/disco_slam/mapping/loop_closure_constraints", 1);
 
-        pubRecentKeyFrames    = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/lio_sam/mapping/map_local", 1);
-        pubRecentKeyFrame     = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/lio_sam/mapping/cloud_registered", 1);
-        pubCloudRegisteredRaw = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/lio_sam/mapping/cloud_registered_raw", 1);
+        pubRecentKeyFrames    = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/map_local", 1);
+        pubRecentKeyFrame     = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/cloud_registered", 1);
+        pubCloudRegisteredRaw = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/cloud_registered_raw", 1);
 
         //for multi robots
-        pubLaserCloudInfo = nh.advertise<lio_sam::cloud_info> (robot_id + "/lio_sam/mapping/cloud_info", 1);
+        pubLaserCloudInfo = nh.advertise<disco_slam::cloud_info> (robot_id + "/disco_slam/mapping/cloud_info", 1);
 
         downSizeFilterCorner.setLeafSize(mappingCornerLeafSize, mappingCornerLeafSize, mappingCornerLeafSize);
         downSizeFilterSurf.setLeafSize(mappingSurfLeafSize, mappingSurfLeafSize, mappingSurfLeafSize);
@@ -252,7 +252,7 @@ public:
         matP = cv::Mat(6, 6, CV_32F, cv::Scalar::all(0));
     }
 
-    void contextLoopInfoHandler(const lio_sam::context_infoConstPtr& msgIn){
+    void contextLoopInfoHandler(const disco_slam::context_infoConstPtr& msgIn){
         //close global loop by do nothing
 //        return;
 
@@ -288,7 +288,7 @@ public:
 
     }
 
-    void laserCloudInfoHandler(const lio_sam::cloud_infoConstPtr& msgIn)
+    void laserCloudInfoHandler(const disco_slam::cloud_infoConstPtr& msgIn)
     {
         // extract time stamp
         timeLaserInfoStamp = msgIn->header.stamp;
@@ -1770,7 +1770,7 @@ public:
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "lio_sam");
+    ros::init(argc, argv, "disco_slam");
 
     mapOptimization MO;
 
