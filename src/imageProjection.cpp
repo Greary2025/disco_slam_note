@@ -1,27 +1,27 @@
 #include "utility.h"
 #include "disco_slam/cloud_info.h"
-
+// Velodyne激光雷达点结构定义，包含XYZI(坐标和强度)、ring(线号)和time(时间戳)
 struct VelodynePointXYZIRT
 {
     PCL_ADD_POINT4D
     PCL_ADD_INTENSITY;
-    uint16_t ring;
-    float time;
+    uint16_t ring;  // 激光雷达线束编号
+    float time;     // 点时间戳(相对于扫描起始时间)
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 } EIGEN_ALIGN16;
 POINT_CLOUD_REGISTER_POINT_STRUCT (VelodynePointXYZIRT,
     (float, x, x) (float, y, y) (float, z, z) (float, intensity, intensity)
     (uint16_t, ring, ring) (float, time, time)
 )
-
+// Ouster激光雷达点结构定义，包含更多属性
 struct OusterPointXYZIRT {
     PCL_ADD_POINT4D;
-    float intensity;
-    uint32_t t;
-    uint16_t reflectivity;
-    uint8_t ring;
-    uint16_t noise;
-    uint32_t range;
+    float intensity;    // 点反射强度
+    uint32_t t;         // 时间戳(ns)
+    uint16_t reflectivity; // 反射率
+    uint8_t ring;       // 线束编号
+    uint16_t noise;     // 噪声水平
+    uint32_t range;     // 测距值(mm)
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 } EIGEN_ALIGN16;
 POINT_CLOUD_REGISTER_POINT_STRUCT(OusterPointXYZIRT,
@@ -30,65 +30,71 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(OusterPointXYZIRT,
     (uint8_t, ring, ring) (uint16_t, noise, noise) (uint32_t, range, range)
 )
 
-// Use the Velodyne point format as a common representation
+// 使用Velodyne点格式作为通用表示
 using PointXYZIRT = VelodynePointXYZIRT;
-
+// 数据队列最大长度
 const int queueLength = 2000;
-
+// 图像投影处理类
 class ImageProjection : public ParamServer
 {
 private:
-
+    // 互斥锁保护IMU和里程计数据
     std::mutex imuLock;
     std::mutex odoLock;
-
-    ros::Subscriber subLaserCloud;
-    ros::Publisher  pubLaserCloud;
+    // ROS订阅器和发布器
+    ros::Subscriber subLaserCloud;  // 激光雷达点云订阅
+    ros::Publisher  pubLaserCloud;  // 激光雷达点云发布
     
-    ros::Publisher pubExtractedCloud;
-    ros::Publisher pubLaserCloudInfo;
-
+    ros::Publisher pubExtractedCloud;  // 提取点云发布
+    ros::Publisher pubLaserCloudInfo;  // 点云信息发布
+    // IMU数据队列
     ros::Subscriber subImu;
     std::deque<sensor_msgs::Imu> imuQueue;
 
+    // 里程计数据队列
     ros::Subscriber subOdom;
     std::deque<nav_msgs::Odometry> odomQueue;
 
+    // 点云数据队列
     std::deque<sensor_msgs::PointCloud2> cloudQueue;
     sensor_msgs::PointCloud2 currentCloudMsg;
+    // IMU数据缓存数组
+    double *imuTime = new double[queueLength];  // 时间戳
+    double *imuRotX = new double[queueLength];  // X轴旋转
+    double *imuRotY = new double[queueLength];  // Y轴旋转
+    double *imuRotZ = new double[queueLength];  // Z轴旋转
 
-    double *imuTime = new double[queueLength];
-    double *imuRotX = new double[queueLength];
-    double *imuRotY = new double[queueLength];
-    double *imuRotZ = new double[queueLength];
-
+    // 当前IMU数据指针
     int imuPointerCur;
-    bool firstPointFlag;
-    Eigen::Affine3f transStartInverse;
+    bool firstPointFlag;  // 是否是第一个点标志
+    Eigen::Affine3f transStartInverse;  // 起始变换的逆矩阵
+    // 点云容器
+    pcl::PointCloud<PointXYZIRT>::Ptr laserCloudIn;  // 输入点云
+    pcl::PointCloud<OusterPointXYZIRT>::Ptr tmpOusterCloudIn;  // Ouster格式临时点云
+    pcl::PointCloud<PointType>::Ptr   fullCloud;     // 完整点云
+    pcl::PointCloud<PointType>::Ptr   extractedCloud; // 提取的点云
 
-    pcl::PointCloud<PointXYZIRT>::Ptr laserCloudIn;
-    pcl::PointCloud<OusterPointXYZIRT>::Ptr tmpOusterCloudIn;
-    pcl::PointCloud<PointType>::Ptr   fullCloud;
-    pcl::PointCloud<PointType>::Ptr   extractedCloud;
-
+    // 去畸变标志
     int deskewFlag;
-    cv::Mat rangeMat;
+    cv::Mat rangeMat;  // 距离图像矩阵
 
+    // 里程计去畸变相关
     bool odomDeskewFlag;
-    float odomIncreX;
-    float odomIncreY;
-    float odomIncreZ;
-
+    float odomIncreX;  // X轴增量
+    float odomIncreY;  // Y轴增量
+    float odomIncreZ;  // Z轴增量
+// 点云信息
     disco_slam::cloud_info cloudInfo;
-    double timeScanCur;
-    double timeScanEnd;
-    std_msgs::Header cloudHeader;
-
+    double timeScanCur;  // 当前扫描起始时间
+    double timeScanEnd;  // 当前扫描结束时间
+    std_msgs::Header cloudHeader;  // 点云头信息
 
 public:
+    // 构造函数，初始化ROS订阅器和发布器
     ImageProjection():
     deskewFlag(0)
     {
+        // 初始化订阅器和发布器
         subImu        = nh.subscribe<sensor_msgs::Imu>(robot_id + "/" + imuTopic, 2000, &ImageProjection::imuHandler, this, ros::TransportHints().tcpNoDelay());
         subOdom       = nh.subscribe<nav_msgs::Odometry>(robot_id + "/" + odomTopic+"_incremental", 2000, &ImageProjection::odometryHandler, this, ros::TransportHints().tcpNoDelay());
         subLaserCloud = nh.subscribe<sensor_msgs::PointCloud2>(robot_id + "/" + pointCloudTopic, 5, &ImageProjection::cloudHandler, this, ros::TransportHints().tcpNoDelay());
@@ -101,7 +107,7 @@ public:
 
         pcl::console::setVerbosityLevel(pcl::console::L_ERROR);
     }
-
+    // 内存分配函数
     void allocateMemory()
     {
         laserCloudIn.reset(new pcl::PointCloud<PointXYZIRT>());
@@ -119,7 +125,7 @@ public:
 
         resetParameters();
     }
-
+    // 重置参数函数
     void resetParameters()
     {
         laserCloudIn->clear();
@@ -141,7 +147,7 @@ public:
     }
 
     ~ImageProjection(){}
-
+    // IMU数据处理回调函数
     void imuHandler(const sensor_msgs::Imu::ConstPtr& imuMsg)
     {
         sensor_msgs::Imu thisImu = imuConverter(*imuMsg);
@@ -166,13 +172,13 @@ public:
         // cout << "IMU roll pitch yaw: " << endl;
         // cout << "roll: " << imuRoll << ", pitch: " << imuPitch << ", yaw: " << imuYaw << endl << endl;
     }
-
+    // 里程计数据处理回调函数
     void odometryHandler(const nav_msgs::Odometry::ConstPtr& odometryMsg)
     {
         std::lock_guard<std::mutex> lock2(odoLock);
         odomQueue.push_back(*odometryMsg);
     }
-
+    // 点云数据处理主函数
     void cloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudMsg)
     {
         if (!cachePointCloud(laserCloudMsg))
@@ -189,24 +195,24 @@ public:
 
         resetParameters();
     }
-
+    // 缓存点云数据
     bool cachePointCloud(const sensor_msgs::PointCloud2ConstPtr& laserCloudMsg)
     {
-        // cache point cloud
+        // 将点云加入队列
         cloudQueue.push_back(*laserCloudMsg);
         if (cloudQueue.size() <= 2)
             return false;
-
-        // convert cloud
+        // 从队列中取出最早的点云
         currentCloudMsg = std::move(cloudQueue.front());
         cloudQueue.pop_front();
+        // 根据传感器类型转换点云格式
         if (sensor == SensorType::VELODYNE)
         {
             pcl::moveFromROSMsg(currentCloudMsg, *laserCloudIn);
         }
         else if (sensor == SensorType::OUSTER)
         {
-            // Convert to Velodyne format
+            // 将Ouster格式转换为Velodyne格式
             pcl::moveFromROSMsg(currentCloudMsg, *tmpOusterCloudIn);
             laserCloudIn->points.resize(tmpOusterCloudIn->size());
             laserCloudIn->is_dense = tmpOusterCloudIn->is_dense;
@@ -228,19 +234,19 @@ public:
             ros::shutdown();
         }
 
-        // get timestamp
+        // 获取时间戳
         cloudHeader = currentCloudMsg.header;
         timeScanCur = cloudHeader.stamp.toSec();
         timeScanEnd = timeScanCur + laserCloudIn->points.back().time;
 
-        // check dense flag
+        // 检查点云是否是dense格式
         if (laserCloudIn->is_dense == false)
         {
             ROS_ERROR("Point cloud is not in dense format, please remove NaN points first!");
             ros::shutdown();
         }
 
-        // check ring channel
+        // 检查点云是否包含ring通道
         static int ringFlag = 0;
         if (ringFlag == 0)
         {
@@ -260,7 +266,7 @@ public:
             }
         }
 
-        // check point time
+        // 检查点云是否包含时间戳
         if (deskewFlag == 0)
         {
             deskewFlag = -1;
@@ -278,13 +284,13 @@ public:
 
         return true;
     }
-
+    // 获取去畸变所需信息
     bool deskewInfo()
     {
         std::lock_guard<std::mutex> lock1(imuLock);
         std::lock_guard<std::mutex> lock2(odoLock);
 
-        // make sure IMU data available for the scan
+        // 确保IMU数据覆盖当前扫描时间段
         if (imuQueue.empty() || imuQueue.front().header.stamp.toSec() > timeScanCur || imuQueue.back().header.stamp.toSec() < timeScanEnd)
         {
             ROS_DEBUG("Waiting for IMU data ...");
@@ -297,11 +303,11 @@ public:
 
         return true;
     }
-
+    // 从IMU数据获取去畸变信息
     void imuDeskewInfo()
     {
         cloudInfo.imuAvailable = false;
-
+        // 移除过期的IMU数据
         while (!imuQueue.empty())
         {
             if (imuQueue.front().header.stamp.toSec() < timeScanCur - 0.01)
@@ -314,7 +320,7 @@ public:
             return;
 
         imuPointerCur = 0;
-
+        // 处理当前扫描时间段内的IMU数据
         for (int i = 0; i < (int)imuQueue.size(); ++i)
         {
             sensor_msgs::Imu thisImuMsg = imuQueue[i];
@@ -336,11 +342,11 @@ public:
                 continue;
             }
 
-            // get angular velocity
+            // 获取角速度
             double angular_x, angular_y, angular_z;
             imuAngular2rosAngular(&thisImuMsg, &angular_x, &angular_y, &angular_z);
 
-            // integrate rotation
+            // 积分计算旋转量
             double timeDiff = currentImuTime - imuTime[imuPointerCur-1];
             imuRotX[imuPointerCur] = imuRotX[imuPointerCur-1] + angular_x * timeDiff;
             imuRotY[imuPointerCur] = imuRotY[imuPointerCur-1] + angular_y * timeDiff;
@@ -356,11 +362,11 @@ public:
 
         cloudInfo.imuAvailable = true;
     }
-
+    // 从里程计数据获取去畸变信息
     void odomDeskewInfo()
     {
         cloudInfo.odomAvailable = false;
-
+        // 移除过期的里程计数据
         while (!odomQueue.empty())
         {
             if (odomQueue.front().header.stamp.toSec() < timeScanCur - 0.01)
@@ -375,7 +381,7 @@ public:
         if (odomQueue.front().header.stamp.toSec() > timeScanCur)
             return;
 
-        // get start odometry at the beinning of the scan
+        // 获取扫描起始时刻的里程计数据
         nav_msgs::Odometry startOdomMsg;
 
         for (int i = 0; i < (int)odomQueue.size(); ++i)
@@ -387,14 +393,14 @@ public:
             else
                 break;
         }
-
+        // 获取起始姿态
         tf::Quaternion orientation;
         tf::quaternionMsgToTF(startOdomMsg.pose.pose.orientation, orientation);
 
         double roll, pitch, yaw;
         tf::Matrix3x3(orientation).getRPY(roll, pitch, yaw);
 
-        // Initial guess used in mapOptimization
+        // 设置初始猜测值(用于后续优化)
         cloudInfo.initialGuessX = startOdomMsg.pose.pose.position.x;
         cloudInfo.initialGuessY = startOdomMsg.pose.pose.position.y;
         cloudInfo.initialGuessZ = startOdomMsg.pose.pose.position.z;
@@ -404,7 +410,7 @@ public:
 
         cloudInfo.odomAvailable = true;
 
-        // get end odometry at the end of the scan
+        // 获取扫描结束时刻的里程计数据
         odomDeskewFlag = false;
 
         if (odomQueue.back().header.stamp.toSec() < timeScanEnd)
@@ -424,25 +430,32 @@ public:
 
         if (int(round(startOdomMsg.pose.covariance[0])) != int(round(endOdomMsg.pose.covariance[0])))
             return;
-
+        // 计算起始和结束时刻的变换矩阵
         Eigen::Affine3f transBegin = pcl::getTransformation(startOdomMsg.pose.pose.position.x, startOdomMsg.pose.pose.position.y, startOdomMsg.pose.pose.position.z, roll, pitch, yaw);
 
         tf::quaternionMsgToTF(endOdomMsg.pose.pose.orientation, orientation);
         tf::Matrix3x3(orientation).getRPY(roll, pitch, yaw);
         Eigen::Affine3f transEnd = pcl::getTransformation(endOdomMsg.pose.pose.position.x, endOdomMsg.pose.pose.position.y, endOdomMsg.pose.pose.position.z, roll, pitch, yaw);
-
+        // 计算相对变换
         Eigen::Affine3f transBt = transBegin.inverse() * transEnd;
-
+        // 提取变换中的平移和旋转增量
         float rollIncre, pitchIncre, yawIncre;
         pcl::getTranslationAndEulerAngles(transBt, odomIncreX, odomIncreY, odomIncreZ, rollIncre, pitchIncre, yawIncre);
 
         odomDeskewFlag = true;
     }
-
+    /*
+     * 根据时间戳查找对应的旋转量(插值计算)
+     * @param pointTime 当前点的时间戳
+     * @param rotXCur 输出X轴旋转量
+     * @param rotYCur 输出Y轴旋转量 
+     * @param rotZCur 输出Z轴旋转量
+     */
     void findRotation(double pointTime, float *rotXCur, float *rotYCur, float *rotZCur)
     {
         *rotXCur = 0; *rotYCur = 0; *rotZCur = 0;
 
+        // 查找时间戳对应的IMU数据索引
         int imuPointerFront = 0;
         while (imuPointerFront < imuPointerCur)
         {
@@ -451,12 +464,15 @@ public:
             ++imuPointerFront;
         }
 
+        // 插值计算旋转量
         if (pointTime > imuTime[imuPointerFront] || imuPointerFront == 0)
         {
+            // 直接使用最近的IMU数据
             *rotXCur = imuRotX[imuPointerFront];
             *rotYCur = imuRotY[imuPointerFront];
             *rotZCur = imuRotZ[imuPointerFront];
         } else {
+            // 线性插值计算旋转量
             int imuPointerBack = imuPointerFront - 1;
             double ratioFront = (pointTime - imuTime[imuPointerBack]) / (imuTime[imuPointerFront] - imuTime[imuPointerBack]);
             double ratioBack = (imuTime[imuPointerFront] - pointTime) / (imuTime[imuPointerFront] - imuTime[imuPointerBack]);
@@ -466,12 +482,18 @@ public:
         }
     }
 
+    /*
+     * 根据时间戳查找对应的位置(暂未实现)
+     * @param relTime 相对时间
+     * @param posXCur 输出X轴位置
+     * @param posYCur 输出Y轴位置
+     * @param posZCur 输出Z轴位置
+     */
     void findPosition(double relTime, float *posXCur, float *posYCur, float *posZCur)
     {
         *posXCur = 0; *posYCur = 0; *posZCur = 0;
 
-        // If the sensor moves relatively slow, like walking speed, positional deskew seems to have little benefits. Thus code below is commented.
-
+        // 注释说明：对于低速运动(如步行速度)，位置去畸变效果不明显，因此以下代码被注释
         // if (cloudInfo.odomAvailable == false || odomDeskewFlag == false)
         //     return;
 
@@ -482,29 +504,42 @@ public:
         // *posZCur = ratio * odomIncreZ;
     }
 
+    /*
+     * 点云去畸变处理
+     * @param point 输入点指针
+     * @param relTime 相对时间
+     * @return 去畸变后的点
+     */
     PointType deskewPoint(PointType *point, double relTime)
     {
+        // 检查去畸变是否可用
         if (deskewFlag == -1 || cloudInfo.imuAvailable == false)
             return *point;
 
+        // 计算当前点的绝对时间
         double pointTime = timeScanCur + relTime;
 
+        // 获取当前点的旋转量
         float rotXCur, rotYCur, rotZCur;
         findRotation(pointTime, &rotXCur, &rotYCur, &rotZCur);
 
+        // 获取当前点的位置(暂未实现)
         float posXCur, posYCur, posZCur;
         findPosition(relTime, &posXCur, &posYCur, &posZCur);
 
+        // 如果是第一个点，计算初始变换的逆矩阵
         if (firstPointFlag == true)
         {
             transStartInverse = (pcl::getTransformation(posXCur, posYCur, posZCur, rotXCur, rotYCur, rotZCur)).inverse();
             firstPointFlag = false;
         }
 
-        // transform points to start
+        // 计算当前点的变换矩阵
         Eigen::Affine3f transFinal = pcl::getTransformation(posXCur, posYCur, posZCur, rotXCur, rotYCur, rotZCur);
+        // 计算相对于起始点的变换
         Eigen::Affine3f transBt = transStartInverse * transFinal;
 
+        // 应用变换到当前点
         PointType newPoint;
         newPoint.x = transBt(0,0) * point->x + transBt(0,1) * point->y + transBt(0,2) * point->z + transBt(0,3);
         newPoint.y = transBt(1,0) * point->x + transBt(1,1) * point->y + transBt(1,2) * point->z + transBt(1,3);
@@ -514,10 +549,13 @@ public:
         return newPoint;
     }
 
+    /*
+     * 点云投影到距离图像
+     */
     void projectPointCloud()
     {
         int cloudSize = laserCloudIn->points.size();
-        // range image projection
+        // 遍历所有点进行投影
         for (int i = 0; i < cloudSize; ++i)
         {
             PointType thisPoint;
@@ -526,19 +564,24 @@ public:
             thisPoint.z = laserCloudIn->points[i].z;
             thisPoint.intensity = laserCloudIn->points[i].intensity;
 
+            // 计算点到原点的距离并检查范围
             float range = pointDistance(thisPoint);
             if (range < lidarMinRange || range > lidarMaxRange)
                 continue;
 
+            // 获取点所在的线束ID
             int rowIdn = laserCloudIn->points[i].ring;
             if (rowIdn < 0 || rowIdn >= N_SCAN)
                 continue;
 
+            // 降采样处理
             if (rowIdn % downsampleRate != 0)
                 continue;
 
+            // 计算水平角度
             float horizonAngle = atan2(thisPoint.x, thisPoint.y) * 180 / M_PI;
 
+            // 计算列ID
             static float ang_res_x = 360.0/float(Horizon_SCAN);
             int columnIdn = -round((horizonAngle-90.0)/ang_res_x) + Horizon_SCAN/2;
             if (columnIdn >= Horizon_SCAN)
@@ -547,37 +590,46 @@ public:
             if (columnIdn < 0 || columnIdn >= Horizon_SCAN)
                 continue;
 
+            // 检查该位置是否已有投影点
             if (rangeMat.at<float>(rowIdn, columnIdn) != FLT_MAX)
                 continue;
 
+            // 去畸变处理
             thisPoint = deskewPoint(&thisPoint, laserCloudIn->points[i].time);
 
+            // 更新距离图像
             rangeMat.at<float>(rowIdn, columnIdn) = range;
 
+            // 保存到完整点云
             int index = columnIdn + rowIdn * Horizon_SCAN;
             fullCloud->points[index] = thisPoint;
         }
     }
 
+    /*
+     * 从距离图像提取有效点云
+     */
     void cloudExtraction()
     {
         int count = 0;
-        // extract segmented cloud for lidar odometry
+        // 遍历所有线束
         for (int i = 0; i < N_SCAN; ++i)
         {
+            // 记录每线束的起始和结束索引(前后各留5个点缓冲)
             cloudInfo.startRingIndex[i] = count - 1 + 5;
 
+            // 遍历该线束的所有列
             for (int j = 0; j < Horizon_SCAN; ++j)
             {
                 if (rangeMat.at<float>(i,j) != FLT_MAX)
                 {
-                    // mark the points' column index for marking occlusion later
+                    // 保存列索引
                     cloudInfo.pointColInd[count] = j;
-                    // save range info
+                    // 保存距离信息
                     cloudInfo.pointRange[count] = rangeMat.at<float>(i,j);
-                    // save extracted cloud
+                    // 保存提取的点
                     extractedCloud->push_back(fullCloud->points[j + i*Horizon_SCAN]);
-                    // size of extracted cloud
+                    // 更新计数器
                     ++count;
                 }
             }
@@ -585,22 +637,35 @@ public:
         }
     }
     
+    /*
+     * 发布处理后的点云和信息
+     */
     void publishClouds()
     {
+        // 设置消息头
         cloudInfo.header = cloudHeader;
+        // 发布去畸变后的点云
         cloudInfo.cloud_deskewed  = publishCloud(&pubExtractedCloud, extractedCloud, cloudHeader.stamp, robot_id + "/" + lidarFrame);
+        // 发布点云信息
         pubLaserCloudInfo.publish(cloudInfo);
     }
 };
 
+/*
+ * 主函数
+ */
 int main(int argc, char** argv)
 {
+    // 初始化ROS节点
     ros::init(argc, argv, "disco_slam");
 
+    // 创建图像投影处理对象
     ImageProjection IP;
     
+    // 打印启动信息
     ROS_INFO("\033[1;32m----> Image Projection Started.\033[0m");
 
+    // 启动多线程spinner
     ros::MultiThreadedSpinner spinner(3);
     spinner.spin();
     
