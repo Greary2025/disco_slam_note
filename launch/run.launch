@@ -8,8 +8,8 @@
 
     <!-- 加载参数文件 -->
     <!-- PARK -->
-    <rosparam file="$(find disco_slam)/config/params.yaml" command="load" />
-    <rosparam file="$(find disco_slam)/src/DiSCo-SLAM/config/mapfusion.yaml" command="load" />
+    <!-- <rosparam file="$(find disco_slam)/config/params.yaml" command="load" /> -->
+    <!-- <rosparam file="$(find disco_slam)/src/DiSCo-SLAM/config/mapfusion.yaml" command="load" /> -->
     <!-- KITTI-08 -->
     <rosparam file="$(find lio_sam)/config/params_k.yaml" command="load" />
     <rosparam file="$(find lio_sam)/src/DiSCo-SLAM/config/mapfusion_k.yaml" command="load"/>
