@@ -88,6 +88,21 @@ link_directories(
 )
 
 ###########
+## 查看版本 ##
+###########
+
+# 添加PCL版本输出（catkin build 会默认省略掉一部分信息）
+# message(STATUS "PCL version: ${PCL_VERSION}")
+# message(STATUS "PCL include dirs: ${PCL_INCLUDE_DIRS}")
+# message(STATUS "PCL library dirs: ${PCL_LIBRARY_DIRS}")
+# message(STATUS "PCL libraries: ${PCL_LIBRARIES}")
+
+# 在find_package(PCL)之后添加
+message(WARNING "==============================================")
+message(WARNING "PCL version: ${PCL_VERSION}")
+message(WARNING "==============================================")
+
+###########
 ## 构建 ##
 ###########
 
