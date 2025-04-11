@@ -1,38 +1,42 @@
 disco_slam:
-# must have imu topic
-  # Topics
-  pointCloudTopic: "points_raw"               # Point cloud data
+# 必须有 imu 话题
+  # 话题
+  pointCloudTopic: "points_raw"               # 点云数据
 #  pointCloudTopic: "velodyne_points"
-  imuTopic: "imu_raw"                         # IMU data
-#  imuTopi: "imu/data"
-  odomTopic: "odometry/imu"                   # IMU pre-preintegration odometry, same frequency as IMU
-  gpsTopic: "odometry/gpsz"                   # GPS odometry topic from navsat, see module_navsat.launch file
+  imuTopic: "imu_raw"                         # IMU数据
+#  imuTopic: "imu/data"
+  odomTopic: "odometry/imu"                   # IMU预积分里程计，与IMU频率相同
+  gpsTopic: "odometry/gpsz"                   # 来自navsat的GPS里程计话题，参见module_navsat.launch文件
 
-  # Frames
+  # 坐标系
   lidarFrame: "base_link"
   baselinkFrame: "base_link"
   odometryFrame: "odom"
   mapFrame: "map"
 
-  # GPS Settings
-  useImuHeadingInitialization: false           # if using GPS data, set to "true"
-  useGpsElevation: false                      # if GPS elevation is bad, set to "false"
-  gpsCovThreshold: 2.0                        # m^2, threshold for using GPS data
-  poseCovThreshold: 25.0                      # m^2, threshold for using GPS data
+  # GPS设置
+  useImuHeadingInitialization: false           # 如果使用GPS数据，设置为"true"
+  useGpsElevation: false                      # 如果GPS高程数据不好，设置为"false"
+  gpsCovThreshold: 2.0                        # 平方米，使用GPS数据的阈值
+  poseCovThreshold: 25.0                      # 平方米，使用GPS数据的阈值
   
-  # Export settings
+  # 导出设置
   savePCD: false                              # https://github.com/TixiaoShan/LIO-SAM/issues/3
-  savePCDDirectory: "/Downloads/LOAM/"        # in your home folder, starts and ends with "/". Warning: the code deletes "LOAM" folder then recreates it. See "mapOptimization" for implementation
+  savePCDDirectory: "/Downloads/LOAM/"        # 在您的主文件夹中，以"/"开始和结束。警告：代码会删除"LOAM"文件夹然后重新创建它。具体实现见"mapOptimization"
 
-  # Sensor Settings
-  sensor: velodyne                            # lidar sensor type, either 'velodyne' or 'ouster'
-  N_SCAN: 16                                  # number of lidar channel (i.e., 16, 32, 64, 128)
-  Horizon_SCAN: 1800                          # lidar horizontal resolution (Velodyne:1800, Ouster:512,1024,2048)
-  downsampleRate: 1                           # default: 1. Downsample your data if too many points. i.e., 16 = 64 / 4, 16 = 16 / 1
-  lidarMinRange: 1.0                          # default: 1.0, minimum lidar range to be used
-  lidarMaxRange: 1000.0                       # default: 1000.0, maximum lidar range to be used
+  # 传感器设置
+  sensor: velodyne                            # 激光雷达传感器类型，可选'velodyne'或'ouster'
+  N_SCAN: 16                                  # 激光雷达通道数量（例如16, 32, 64, 128）
+  # N_SCAN: 32                                  # 激光雷达通道数量（例如16, 32, 64, 128）
+  # N_SCAN: 64                                  # 激光雷达通道数量（例如16, 32, 64, 128）
+  # Horizon_SCAN: 900                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
+  Horizon_SCAN: 1800                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
+  # Horizon_SCAN: 3600                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
+  downsampleRate: 1                           # 默认：1。如果点太多，可以降采样数据。例如，16 = 64 / 4，16 = 16 / 1
+  lidarMinRange: 1.0                          # 默认：1.0，使用的最小激光雷达范围
+  lidarMaxRange: 1000.0                       # 默认：1000.0，使用的最大激光雷达范围
 
-  # IMU Settings
+  # IMU设置
   imuAccNoise: 3.9939570888238808e-03
   imuGyrNoise: 1.5636343949698187e-03
   imuAccBiasN: 6.4356659353532566e-05
@@ -40,7 +44,7 @@ disco_slam:
   imuGravity: 9.80511
   imuRPYWeight: 0.01
 
-  # Extrinsics (lidar -> IMU)
+  # 外参（激光雷达 -> IMU）
   extrinsicTrans: [0.0, 0.0, 0.0]
   extrinsicRot: [-1, 0, 0,
                   0, 1, 0,
@@ -55,49 +59,49 @@ disco_slam:
 #                   0, 1, 0,
 #                   0, 0, 1]
 
-  # LOAM feature threshold
+  # LOAM特征阈值
   edgeThreshold: 1.0
   surfThreshold: 0.1
   edgeFeatureMinValidNum: 10
   surfFeatureMinValidNum: 100
 
-  # voxel filter paprams
-  odometrySurfLeafSize: 0.4                     # default: 0.4
-  mappingCornerLeafSize: 0.2                    # default: 0.2
-  mappingSurfLeafSize: 0.4                      # default: 0.4
+  # 体素滤波参数
+  odometrySurfLeafSize: 0.4                     # 默认：0.4
+  mappingCornerLeafSize: 0.2                    # 默认：0.2
+  mappingSurfLeafSize: 0.4                      # 默认：0.4
 
-  # robot motion constraint (in case you are using a 2D robot)
-  z_tollerance: 1000                            # meters
-  rotation_tollerance: 1000                     # radians
+  # 机器人运动约束（适用于2D机器人）
+  z_tollerance: 1000                            # 米
+  rotation_tollerance: 1000                     # 弧度
 
-  # CPU Params
-  numberOfCores: 4                              # number of cores for mapping optimization
-  mappingProcessInterval: 0.15                  # seconds, regulate mapping frequency
+  # CPU参数
+  numberOfCores: 4                              # 用于地图优化的核心数
+  mappingProcessInterval: 0.15                  # 秒，调节地图构建频率
 
-  # Surrounding map
-  surroundingkeyframeAddingDistThreshold: 1.0   # meters, regulate keyframe adding threshold
-  surroundingkeyframeAddingAngleThreshold: 0.2  # radians, regulate keyframe adding threshold
-  surroundingKeyframeDensity: 2.0               # meters, downsample surrounding keyframe poses   
-  surroundingKeyframeSearchRadius: 50.0         # meters, within n meters scan-to-map optimization (when loop closure disabled)
+  # 周围地图
+  surroundingkeyframeAddingDistThreshold: 1.0   # 米，调节关键帧添加阈值
+  surroundingkeyframeAddingAngleThreshold: 0.2  # 弧度，调节关键帧添加阈值
+  surroundingKeyframeDensity: 2.0               # 米，下采样周围关键帧位姿   
+  surroundingKeyframeSearchRadius: 50.0         # 米，在n米范围内进行扫描到地图的优化（当回环检测禁用时）
 
-  # Loop closure
+  # 回环检测
   loopClosureEnableFlag: true
-  loopClosureFrequency: 1.0                     # Hz, regulate loop closure constraint add frequency
-  surroundingKeyframeSize: 50                   # submap size (when loop closure enabled)
-  historyKeyframeSearchRadius: 15.0             # meters, key frame that is within n meters from current pose will be considerd for loop closure
-  historyKeyframeSearchTimeDiff: 30.0           # seconds, key frame that is n seconds older will be considered for loop closure
-  historyKeyframeSearchNum: 25                  # number of hostory key frames will be fused into a submap for loop closure
-  historyKeyframeFitnessScore: 0.3              # icp threshold, the smaller the better alignment
+  loopClosureFrequency: 1.0                     # 赫兹，调节回环约束添加频率
+  surroundingKeyframeSize: 50                   # 子地图大小（当回环检测启用时）
+  historyKeyframeSearchRadius: 15.0             # 米，距离当前位姿n米内的关键帧将被考虑用于回环检测
+  historyKeyframeSearchTimeDiff: 30.0           # 秒，n秒以前的关键帧将被考虑用于回环检测
+  historyKeyframeSearchNum: 25                  # 将融合到子地图中用于回环检测的历史关键帧数量
+  historyKeyframeFitnessScore: 0.3              # ICP阈值，越小表示对齐越好
 
-  # Visualization
-  globalMapVisualizationSearchRadius: 1000.0    # meters, global map visualization radius
-  globalMapVisualizationPoseDensity: 10.0       # meters, global map visualization keyframe density
-  globalMapVisualizationLeafSize: 1.0           # meters, global map visualization cloud density
-
-
+  # 可视化
+  globalMapVisualizationSearchRadius: 1000.0    # 米，全局地图可视化半径
+  globalMapVisualizationPoseDensity: 10.0       # 米，全局地图可视化关键帧密度
+  globalMapVisualizationLeafSize: 1.0           # 米，全局地图可视化点云密度
 
 
-# Navsat (convert GPS coordinates to Cartesian)
+
+
+# Navsat（将GPS坐标转换为笛卡尔坐标）
 navsat:
   frequency: 50
   wait_for_datum: false
@@ -109,7 +113,7 @@ navsat:
   broadcast_utm_transform_as_parent_frame: false
   publish_filtered_gps: false
 
-# EKF for Navsat
+# 用于Navsat的EKF
 ekf_gps:
   publish_tf: false
   map_frame: map
@@ -121,10 +125,10 @@ ekf_gps:
   two_d_mode: false
   sensor_timeout: 0.01
   # -------------------------------------
-  # External IMU:
+  # 外部IMU:
   # -------------------------------------
   imu0: imu_correct
-  # make sure the input is aligned with ROS REP105. "imu_correct" is manually transformed by myself. EKF can also transform the data using tf between your imu and base_link
+  # 确保输入与ROS REP105对齐。"imu_correct"是我手动转换的。EKF也可以使用IMU和base_link之间的tf来转换数据
   imu0_config: [false, false, false,
                 true,  true,  true,
                 false, false, false,
@@ -134,7 +138,7 @@ ekf_gps:
   imu0_queue_size: 50 
   imu0_remove_gravitational_acceleration: true
   # -------------------------------------
-  # Odometry (From Navsat):
+  # 里程计（来自Navsat）:
   # -------------------------------------
   odom0: odometry/gps
   odom0_config: [true,  true,  true,

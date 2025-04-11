@@ -21,6 +21,7 @@ struct by_value{
  * 2. 标记遮挡点和平行光束点
  * 3. 提取角点和平面点特征
  */
+//  表示 FeatureExtraction 类公有继承自 ParamServer 类
 class FeatureExtraction : public ParamServer
 {
 public:
@@ -87,6 +88,7 @@ public:
      * 点云信息处理回调函数
      * @param msgIn 输入的点云信息消息
      */
+    // 重要线程：处理点云信息，提取特征并发布
     void laserCloudInfoHandler(const disco_slam::cloud_infoConstPtr& msgIn)
     {
         cloudInfo = *msgIn;  // 保存点云信息
@@ -187,7 +189,12 @@ public:
         cornerCloud->clear();  // 清空角点云
         surfaceCloud->clear(); // 清空平面点云
 
+        // 创建一个智能指针 surfaceCloudScan，用于临时存储单条激光线束上的平面点云数据
+        // 在后续处理中，会将每条激光线束上的平面点云数据存储在这个指针所指向的点云对象中
         pcl::PointCloud<PointType>::Ptr surfaceCloudScan(new pcl::PointCloud<PointType>());
+
+        // 创建一个智能指针 surfaceCloudScanDS，用于存储经过降采样处理后的平面点云数据
+        // 降采样可以减少点云数据量，提高处理效率，处理后的点云数据将存储在这个指针所指向的点云对象中
         pcl::PointCloud<PointType>::Ptr surfaceCloudScanDS(new pcl::PointCloud<PointType>());
 
         // 遍历每条激光线束
@@ -323,7 +330,8 @@ int main(int argc, char** argv)
     FeatureExtraction FE;  // 创建特征提取对象
 
     ROS_INFO("\033[1;32m----> Feature Extraction Started.\033[0m");  // 打印启动信息
-   
+
+    // 单线程运行
     ros::spin();  // 进入ROS事件循环
 
     return 0;

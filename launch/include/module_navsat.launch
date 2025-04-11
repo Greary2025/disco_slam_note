@@ -1,20 +1,25 @@
 <launch>
 
-    <arg name="project" default="disco_slam"/>
+    <arg name="project" default="disco_slam"/>      <!-- 项目名称，默认为disco_slam -->
 
+    <!-- 设置ROS日志级别配置文件，只显示错误级别的日志 -->
     <env name="ROSCONSOLE_CONFIG_FILE" value="$(find disco_slam)/launch/include/rosconsole/rosconsole_error.conf"/>
     
-    <!-- EKF GPS-->
+    <!-- EKF GPS节点：使用扩展卡尔曼滤波器融合GPS和其他传感器数据 -->
     <node pkg="robot_localization" type="ekf_localization_node" name="ekf_gps" respawn="true">
+        <!-- 将输出话题重映射为odometry/navsat -->
         <remap from="odometry/filtered" to="odometry/navsat" />
     </node>
 
-    <!-- Navsat -->
+    <!-- Navsat转换节点：将GPS数据转换为里程计数据 -->
     <node pkg="robot_localization" type="navsat_transform_node" name="navsat" respawn="true">
+        <!-- 可选的基准点设置（已注释）：纬度、经度、高度、世界坐标系、机器人坐标系 -->
         <!-- <rosparam param="datum">[42.35893211, -71.09345588, 0.0, world, base_link]</rosparam> -->
-        <remap from="imu/data" to="imu_correct" />
-        <remap from="gps/fix" to="gps/fix" />
-        <remap from="odometry/filtered" to="odometry/navsat" />
+        
+        <!-- 话题重映射：将标准话题名映射到实际使用的话题名 -->
+        <remap from="imu/data" to="imu_correct" />          <!-- IMU数据话题重映射 -->
+        <remap from="gps/fix" to="gps/fix" />               <!-- GPS数据话题保持原名 -->
+        <remap from="odometry/filtered" to="odometry/navsat" />  <!-- 里程计数据话题重映射 -->
     </node>
 
 </launch>

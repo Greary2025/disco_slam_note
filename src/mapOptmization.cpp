@@ -392,21 +392,6 @@ public:
         return thisPose6D;
     }
 
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     void visualizeGlobalMapThread()
     {
         ros::Rate rate(0.2);
@@ -500,17 +485,6 @@ public:
         downSizeFilterGlobalMapKeyFrames.filter(*globalMapKeyFramesDS);
         publishCloud(&pubLaserCloudSurround, globalMapKeyFramesDS, timeLaserInfoStamp, robot_id + "/" + odometryFrame);
     }
-
-
-
-
-
-
-
-
-
-
-
 
     void loopClosureThread()
     {
@@ -784,16 +758,6 @@ public:
         markerArray.markers.push_back(markerEdge);
         pubLoopConstraintEdge.publish(markerArray);
     }
-
-
-
-
-
-
-
-    
-
-
 
     void updateInitialGuess()
     {

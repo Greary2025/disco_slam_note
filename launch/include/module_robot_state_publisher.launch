@@ -1,10 +1,13 @@
 <launch>
 
-	<arg name="project" default="disco_slam"/>
+	<arg name="project" default="disco_slam"/>      <!-- 项目名称，默认为disco_slam -->
 
+    <!-- 加载机器人描述参数，使用xacro处理URDF模型文件 -->
     <param name="robot_description" command="$(find xacro)/xacro $(find disco_slam)/launch/include/config/robot.urdf.xacro --inorder" />
 
+    <!-- 启动机器人状态发布节点：负责发布机器人各关节的TF变换 -->
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true">
+        <!-- 可选的TF前缀设置（已注释） -->
         <!-- <param name="tf_prefix" value="$(env ROS_HOSTNAME)"/> -->
     </node>
   

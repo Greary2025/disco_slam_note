@@ -1,24 +1,28 @@
 <launch>
 
-    <arg name="project" default="disco_slam"/>
-    <arg name="robot0"	default="jackal0"/>
-    <arg name="robot1"	default="jackal1"/>
-    <arg name="robot2"	default="jackal2"/>
+    <!-- 定义参数 -->
+    <arg name="project" default="disco_slam"/>      <!-- 项目名称，默认为disco_slam -->
+    <arg name="robot0"	default="jackal0"/>         <!-- 机器人0的ID，默认为jackal0 -->
+    <arg name="robot1"	default="jackal1"/>         <!-- 机器人1的ID，默认为jackal1 -->
+    <arg name="robot2"	default="jackal2"/>         <!-- 机器人2的ID，默认为jackal2 -->
 
-    <!-- Parameters -->
-    <rosparam file="$(find disco_slam)/config/params.yaml" command="load" />
-    <rosparam file="$(find disco_slam)/config/mapfusion.yaml" command="load" />
+    <!-- 加载参数文件 -->
+    <rosparam file="$(find disco_slam)/config/params.yaml" command="load" />       <!-- 加载通用参数配置 -->
+    <rosparam file="$(find disco_slam)/config/mapfusion.yaml" command="load" />    <!-- 加载地图融合特定参数 -->
 
+    <!-- 为机器人0启动地图融合节点 -->
     <node pkg="$(arg project)" type="$(arg project)_mapFusion" name="$(arg project)_mapFusion_$(arg robot0)"   output="screen"     respawn="false">
-        <param name="/robot_id" type="string" value = "$(arg robot0)"/>
+        <param name="/robot_id" type="string" value = "$(arg robot0)"/>    <!-- 设置机器人ID参数 -->
     </node>
 
+    <!-- 为机器人1启动地图融合节点 -->
     <node pkg="$(arg project)" type="$(arg project)_mapFusion" name="$(arg project)_mapFusion_$(arg robot1)"   output="screen"     respawn="false">
-        <param name="/robot_id" type="string" value = "$(arg robot1)"/>
+        <param name="/robot_id" type="string" value = "$(arg robot1)"/>    <!-- 设置机器人ID参数 -->
     </node>
 
+    <!-- 为机器人2启动地图融合节点 -->
     <node pkg="$(arg project)" type="$(arg project)_mapFusion" name="$(arg project)_mapFusion_$(arg robot2)"   output="screen"     respawn="false">
-        <param name="/robot_id" type="string" value = "$(arg robot2)"/>
+        <param name="/robot_id" type="string" value = "$(arg robot2)"/>    <!-- 设置机器人ID参数 -->
     </node>
 
   

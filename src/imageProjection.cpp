@@ -3,12 +3,25 @@
 // Velodyne激光雷达点结构定义，包含XYZI(坐标和强度)、ring(线号)和time(时间戳)
 struct VelodynePointXYZIRT
 {
-    PCL_ADD_POINT4D
+    // 添加 x,y,z 坐标和一个填充字段
+    PCL_ADD_POINT4D;
+    // 添加反射强度
     PCL_ADD_INTENSITY;
     uint16_t ring;  // 激光雷达线束编号
     float time;     // 点时间戳(相对于扫描起始时间)
+    // 是 Eigen 库中的一个宏定义，用于确保类的内存对齐。
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 } EIGEN_ALIGN16;
+
+// 注册点云结构体到PCL中，使PCL能够识别和处理该类型的点云
+// 参数1: VelodynePointXYZIRT - 要注册的点云结构体名称
+// 参数2: 结构体中各字段的定义，格式为(字段类型, 字段名, 字段名)
+//   - (float, x, x): x坐标，类型为float
+//   - (float, y, y): y坐标，类型为float
+//   - (float, z, z): z坐标，类型为float
+//   - (float, intensity, intensity): 点云强度值
+//   - (uint16_t, ring, ring): 激光雷达线束编号
+//   - (float, time, time): 点的时间戳
 POINT_CLOUD_REGISTER_POINT_STRUCT (VelodynePointXYZIRT,
     (float, x, x) (float, y, y) (float, z, z) (float, intensity, intensity)
     (uint16_t, ring, ring) (float, time, time)
@@ -83,7 +96,7 @@ private:
     float odomIncreX;  // X轴增量
     float odomIncreY;  // Y轴增量
     float odomIncreZ;  // Z轴增量
-// 点云信息
+    // 点云信息
     disco_slam::cloud_info cloudInfo;
     double timeScanCur;  // 当前扫描起始时间
     double timeScanEnd;  // 当前扫描结束时间
@@ -95,59 +108,98 @@ public:
     deskewFlag(0)
     {
         // 初始化订阅器和发布器
-        subImu        = nh.subscribe<sensor_msgs::Imu>(robot_id + "/" + imuTopic, 2000, &ImageProjection::imuHandler, this, ros::TransportHints().tcpNoDelay());
-        subOdom       = nh.subscribe<nav_msgs::Odometry>(robot_id + "/" + odomTopic+"_incremental", 2000, &ImageProjection::odometryHandler, this, ros::TransportHints().tcpNoDelay());
+        // 订阅IMU话题
+        // 参数1: robot_id + "/" + imuTopic - 话题名称，由机器人ID和IMU话题名组成
+        // 参数2: 2000 - 消息队列长度，可缓存2000条消息
+        // 参数3: &ImageProjection::imuHandler - 回调函数指针，处理接收到的IMU消息
+        // 参数4: this - 当前对象指针，用于在回调函数中访问类成员
+        // 参数5: ros::TransportHints().tcpNoDelay() - 使用TCP NODELAY选项，减少通信延迟
+        subImu = nh.subscribe<sensor_msgs::Imu>(robot_id + "/" + imuTopic, 2000, &ImageProjection::imuHandler, this, ros::TransportHints().tcpNoDelay());
+        
+        // 订阅里程计增量话题
+        // 注意话题名后缀"_incremental"表示增量数据，用于里程计去畸变
+        // 其他参数含义同上
+        subOdom = nh.subscribe<nav_msgs::Odometry>(robot_id + "/" + odomTopic+"_incremental", 2000, &ImageProjection::odometryHandler, this, ros::TransportHints().tcpNoDelay());
+        
+        // 订阅激光雷达点云话题
+        // 参数2: 5 - 队列长度较小，因为点云数据量大，避免占用过多内存
+        // 消息类型为sensor_msgs::PointCloud2，包含原始点云数据
+        // 其他参数含义同上
         subLaserCloud = nh.subscribe<sensor_msgs::PointCloud2>(robot_id + "/" + pointCloudTopic, 5, &ImageProjection::cloudHandler, this, ros::TransportHints().tcpNoDelay());
 
+        // 创建点云发布器
+        // 参数1: robot_id + "/disco_slam/deskew/cloud_deskewed" - 发布话题名称，用于发布去畸变后的点云
+        // 参数2: 1 - 消息队列长度，只保留最新的1条消息
+        // 消息类型为sensor_msgs::PointCloud2，标准ROS点云消息格式
         pubExtractedCloud = nh.advertise<sensor_msgs::PointCloud2> (robot_id + "/disco_slam/deskew/cloud_deskewed", 1);
+        
+        // 创建点云信息发布器，将进入下一个文件和流程
+        // 参数1: robot_id + "/disco_slam/deskew/cloud_info" - 发布话题名称，用于发布点云的附加信息
+        // 参数2: 1 - 消息队列长度，只保留最新的1条消息
+        // 消息类型为自定义的disco_slam::cloud_info，包含点云的结构化信息
         pubLaserCloudInfo = nh.advertise<disco_slam::cloud_info> (robot_id + "/disco_slam/deskew/cloud_info", 1);
-
-        allocateMemory();
-        resetParameters();
-
-        pcl::console::setVerbosityLevel(pcl::console::L_ERROR);
     }
-    // 内存分配函数
+    /*
+        * 内存分配函数：为点云处理分配和初始化必要的内存空间
+        */
     void allocateMemory()
     {
-        laserCloudIn.reset(new pcl::PointCloud<PointXYZIRT>());
-        tmpOusterCloudIn.reset(new pcl::PointCloud<OusterPointXYZIRT>());
-        fullCloud.reset(new pcl::PointCloud<PointType>());
-        extractedCloud.reset(new pcl::PointCloud<PointType>());
-
+        // 为各种点云容器分配内存并初始化智能指针
+        laserCloudIn.reset(new pcl::PointCloud<PointXYZIRT>());         // 输入激光点云
+        tmpOusterCloudIn.reset(new pcl::PointCloud<OusterPointXYZIRT>()); // Ouster临时点云
+        fullCloud.reset(new pcl::PointCloud<PointType>());              // 完整点云（用于图像投影）
+        extractedCloud.reset(new pcl::PointCloud<PointType>());         // 提取的有效点云
+    
+        // 预分配完整点云的空间
+        // N_SCAN: 激光雷达垂直线束数量
+        // Horizon_SCAN: 水平方向的点数
         fullCloud->points.resize(N_SCAN*Horizon_SCAN);
-
-        cloudInfo.startRingIndex.assign(N_SCAN, 0);
-        cloudInfo.endRingIndex.assign(N_SCAN, 0);
-
-        cloudInfo.pointColInd.assign(N_SCAN*Horizon_SCAN, 0);
-        cloudInfo.pointRange.assign(N_SCAN*Horizon_SCAN, 0);
-
+    
+        // 初始化点云信息结构体中的数组
+        cloudInfo.startRingIndex.assign(N_SCAN, 0);        // 每个线束起始点的索引
+        cloudInfo.endRingIndex.assign(N_SCAN, 0);          // 每个线束结束点的索引
+    
+        // 为点云的列索引和距离信息分配空间
+        cloudInfo.pointColInd.assign(N_SCAN*Horizon_SCAN, 0);  // 点的列索引
+        cloudInfo.pointRange.assign(N_SCAN*Horizon_SCAN, 0);   // 点到激光雷达的距离
+    
+        // 重置其他参数
         resetParameters();
     }
-    // 重置参数函数
+    /*
+     * 重置参数函数：在每次点云处理完成后重置所有状态变量
+     */
     void resetParameters()
     {
-        laserCloudIn->clear();
-        extractedCloud->clear();
-        // reset range matrix for range image projection
+        // 清空点云容器
+        laserCloudIn->clear();      // 清空输入点云
+        extractedCloud->clear();    // 清空提取的点云
+        
+        // 重置距离图像矩阵，初始化为最大浮点值
+        // N_SCAN: 激光雷达垂直线束数量
+        // Horizon_SCAN: 水平方向的点数
+        // CV_32F: 32位浮点类型
+        // FLT_MAX: 表示无效或未投影的点
         rangeMat = cv::Mat(N_SCAN, Horizon_SCAN, CV_32F, cv::Scalar::all(FLT_MAX));
 
-        imuPointerCur = 0;
-        firstPointFlag = true;
-        odomDeskewFlag = false;
+        // 重置IMU数据处理相关变量
+        imuPointerCur = 0;          // 当前IMU数据指针归零
+        firstPointFlag = true;      // 重置第一个点标志
+        odomDeskewFlag = false;     // 重置里程计去畸变标志
 
+        // 清空IMU数据缓存数组
         for (int i = 0; i < queueLength; ++i)
         {
-            imuTime[i] = 0;
-            imuRotX[i] = 0;
-            imuRotY[i] = 0;
-            imuRotZ[i] = 0;
+            imuTime[i] = 0;         // 清空时间戳
+            imuRotX[i] = 0;         // 清空X轴旋转
+            imuRotY[i] = 0;         // 清空Y轴旋转
+            imuRotZ[i] = 0;         // 清空Z轴旋转
         }
     }
 
     ~ImageProjection(){}
     // IMU数据处理回调函数
+    // 重点三大线程之一
     void imuHandler(const sensor_msgs::Imu::ConstPtr& imuMsg)
     {
         sensor_msgs::Imu thisImu = imuConverter(*imuMsg);
@@ -173,26 +225,44 @@ public:
         // cout << "roll: " << imuRoll << ", pitch: " << imuPitch << ", yaw: " << imuYaw << endl << endl;
     }
     // 里程计数据处理回调函数
+    // 重点三大线程之一
+    // 从上一次里程计位置开始，计算当前里程计位置与上一次里程计位置之间的增量
+    // 来自mapOptmization.cpp
     void odometryHandler(const nav_msgs::Odometry::ConstPtr& odometryMsg)
     {
         std::lock_guard<std::mutex> lock2(odoLock);
         odomQueue.push_back(*odometryMsg);
     }
-    // 点云数据处理主函数
+    /*
+     * 点云数据处理主函数：处理每一帧激光雷达点云数据
+     * 主要完成点云的缓存、去畸变、投影、提取和发布等处理流程
+     * @param laserCloudMsg 输入的原始点云消息
+     */
     void cloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudMsg)
     {
+        // 缓存点云数据并进行格式转换
+        // 如果点云队列不足2帧或格式转换失败则返回
         if (!cachePointCloud(laserCloudMsg))
             return;
 
+        // 获取点云去畸变所需的IMU和里程计信息
+        // 如果IMU或里程计数据不足以覆盖当前点云的时间段则返回
         if (!deskewInfo())
             return;
 
+        // 将点云投影到距离图像上
+        // 包括点云去畸变和球面投影
         projectPointCloud();
 
+        // 从距离图像中提取有效点云
+        // 去除无效点并记录点云结构信息
         cloudExtraction();
 
+        // 发布处理后的点云和相关信息
+        // 包括去畸变后的点云和点云信息
         publishClouds();
 
+        // 重置处理参数，为下一帧做准备
         resetParameters();
     }
     // 缓存点云数据
@@ -284,21 +354,29 @@ public:
 
         return true;
     }
-    // 获取去畸变所需信息
+    /*
+     * 获取点云去畸变所需的IMU和里程计信息
+     * @return 如果获取信息成功返回true，否则返回false
+     */
     bool deskewInfo()
     {
+        // 使用互斥锁保护IMU和里程计数据的访问
+        // 防止在处理过程中数据被其他线程修改
         std::lock_guard<std::mutex> lock1(imuLock);
         std::lock_guard<std::mutex> lock2(odoLock);
 
-        // 确保IMU数据覆盖当前扫描时间段
+        // 检查IMU数据是否完整覆盖当前点云的扫描时间段
+        // 条件1: IMU队列不为空
+        // 条件2: IMU起始时间早于点云扫描起始时间
+        // 条件3: IMU结束时间晚于点云扫描结束时间
         if (imuQueue.empty() || imuQueue.front().header.stamp.toSec() > timeScanCur || imuQueue.back().header.stamp.toSec() < timeScanEnd)
         {
             ROS_DEBUG("Waiting for IMU data ...");
             return false;
         }
-
+        // 处理IMU数据，计算点云去畸变所需的旋转信息
         imuDeskewInfo();
-
+        // 处理里程计数据，计算点云去畸变所需的位置信息
         odomDeskewInfo();
 
         return true;
@@ -600,7 +678,7 @@ public:
             // 更新距离图像
             rangeMat.at<float>(rowIdn, columnIdn) = range;
 
-            // 保存到完整点云
+            // 保存到完整点云，(当前行 - 1) * 列数 + 当前列
             int index = columnIdn + rowIdn * Horizon_SCAN;
             fullCloud->points[index] = thisPoint;
         }
@@ -668,6 +746,15 @@ int main(int argc, char** argv)
     // 启动多线程spinner
     ros::MultiThreadedSpinner spinner(3);
     spinner.spin();
+    // 主线程
+    // ├── 线程1 -> 处理IMU数据
+    // ├── 线程2 -> 处理点云数据
+    // └── 线程3 -> 处理里程计数据
+    // - 每个线程都可以处理任何类型的回调
+    // - 当有新消息到达时，空闲的线程会立即处理对应的回调函数
+    // - 多线程处理可以避免某个耗时回调阻塞其他消息的处理
+    // - 需要使用互斥锁（如代码中的 imuLock 和 odoLock ）保护共享数据
+    // - 回调函数需要考虑线程安全性
     
     return 0;
 }
