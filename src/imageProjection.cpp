@@ -744,6 +744,10 @@ int main(int argc, char** argv)
     ROS_INFO("\033[1;32m----> Image Projection Started.\033[0m");
 
     // 启动多线程spinner
+    // 和C++多线程的区别：
+    // 用途专一：主要用于并行处理 ROS 订阅话题的回调函数。
+    // 与 ROS 系统深度集成，能自动管理 ROS 节点的消息队列，确保消息按顺序处理。
+    // 用户只需指定线程数量，ROS 会自动管理这些线程的生命周期和任务分配。
     ros::MultiThreadedSpinner spinner(3);
     spinner.spin();
     // 主线程

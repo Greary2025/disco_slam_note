@@ -1,513 +1,940 @@
+// 包含自定义工具头文件，该文件可能包含一些通用的工具函数、类型定义等
 #include "utility.h"
+// 包含 disco_slam 包中的 cloud_info 消息类型头文件，用于处理点云信息
 #include "disco_slam/cloud_info.h"
+// 包含 disco_slam 包中的 context_info 消息类型头文件，用于处理上下文信息
 #include "disco_slam/context_info.h"
 
+// 包含 gtsam 库中旋转矩阵相关的头文件，用于处理三维旋转
 #include <gtsam/geometry/Rot3.h>
+// 包含 gtsam 库中三维位姿相关的头文件，用于表示和处理三维空间中的位姿
 #include <gtsam/geometry/Pose3.h>
+// 包含 gtsam 库中先验因子相关的头文件，用于添加先验约束到因子图中
 #include <gtsam/slam/PriorFactor.h>
+// 包含 gtsam 库中两个位姿之间的因子相关的头文件，用于添加两个位姿之间的约束
 #include <gtsam/slam/BetweenFactor.h>
+// 包含 gtsam 库中 GPS 因子相关的头文件，用于添加 GPS 测量值到因子图中
 #include <gtsam/navigation/GPSFactor.h>
+// 包含 gtsam 库中 IMU 因子相关的头文件，用于添加 IMU 测量值到因子图中
 #include <gtsam/navigation/ImuFactor.h>
+// 包含 gtsam 库中组合 IMU 因子相关的头文件，用于处理更复杂的 IMU 测量信息
 #include <gtsam/navigation/CombinedImuFactor.h>
+// 包含 gtsam 库中非线性因子图相关的头文件，用于构建和管理非线性因子图
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
+// 包含 gtsam 库中 Levenberg-Marquardt 优化器相关的头文件，用于对非线性因子图进行优化
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+// 包含 gtsam 库中边缘概率相关的头文件，用于计算因子图中变量的边缘概率
 #include <gtsam/nonlinear/Marginals.h>
+// 包含 gtsam 库中值容器相关的头文件，用于存储和管理因子图中的变量值
 #include <gtsam/nonlinear/Values.h>
+// 包含 gtsam 库中符号相关的头文件，用于在因子图中标识变量
 #include <gtsam/inference/Symbol.h>
+// 包含 gtsam 库中增量平滑与建图（ISAM2）相关的头文件，用于实时增量式地优化因子图
 #include <gtsam/nonlinear/ISAM2.h>
 
+// 包含 gtsam 库中数据集相关的头文件，可能用于加载和处理预定义的数据集
 #include <gtsam/slam/dataset.h>
 
+// 使用 gtsam 命名空间，方便直接使用 gtsam 库中的类和函数
 using namespace gtsam;
 
-using symbol_shorthand::X; // Pose3 (x,y,z,r,p,y)
-using symbol_shorthand::V; // Vel   (xdot,ydot,zdot)
-using symbol_shorthand::B; // Bias  (ax,ay,az,gx,gy,gz)
-using symbol_shorthand::G; // GPS pose
+// 使用符号简写，X 代表三维位姿 (x, y, z, roll, pitch, yaw)
+using symbol_shorthand::X; 
+// 使用符号简写，V 代表速度 (xdot, ydot, zdot)
+using symbol_shorthand::V; 
+// 使用符号简写，B 代表偏置 (ax, ay, az, gx, gy, gz)
+using symbol_shorthand::B; 
+// 使用符号简写，G 代表 GPS 位姿
+using symbol_shorthand::G; 
 
-/*
-    * A point cloud type that has 6D pose info ([x,y,z,roll,pitch,yaw] intensity is time stamp)
-    */
+/**
+ * @brief 包含 6D 位姿信息的点云类型，强度值存储时间戳
+ * 
+ * 该结构体扩展了 PCL 点类型，包含三维坐标、强度、欧拉角（roll, pitch, yaw）和时间戳。
+ */
 struct PointXYZIRPYT
 {
+    // 添加三维坐标和填充字段
     PCL_ADD_POINT4D
-    PCL_ADD_INTENSITY;                  // preferred way of adding a XYZ+padding
+    // 添加强度字段，这是推荐的添加 XYZ + 填充的方式
+    PCL_ADD_INTENSITY;                  
+    // 绕 X 轴的旋转角度（弧度）
     float roll;
+    // 绕 Y 轴的旋转角度（弧度）
     float pitch;
+    // 绕 Z 轴的旋转角度（弧度）
     float yaw;
+    // 时间戳
     double time;
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW   // make sure our new allocators are aligned
-} EIGEN_ALIGN16;                    // enforce SSE padding for correct memory alignment
+    // 确保内存分配对齐，以支持 SSE 指令集
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW   
+} EIGEN_ALIGN16;                    // 强制 SSE 填充以保证正确的内存对齐
 
+// 注册自定义点云结构体，方便 PCL 库使用
 POINT_CLOUD_REGISTER_POINT_STRUCT (PointXYZIRPYT,
                                    (float, x, x) (float, y, y)
                                    (float, z, z) (float, intensity, intensity)
                                    (float, roll, roll) (float, pitch, pitch) (float, yaw, yaw)
                                    (double, time, time))
 
+// 定义 PointTypePose 作为 PointXYZIRPYT 的别名
 typedef PointXYZIRPYT  PointTypePose;
 
-
+/**
+ * @brief 地图优化类，继承自 ParamServer，用于处理地图优化相关任务
+ * 
+ * 该类包含了与地图优化相关的成员变量和方法，如 GTSAM 因子图、ROS 发布者和订阅者、点云数据等。
+ */
 class mapOptimization : public ParamServer
 {
 
 public:
 
-    // gtsam
+    // GTSAM 非线性因子图，用于存储各种约束因子
     NonlinearFactorGraph gtSAMgraph;
+    // GTSAM 初始估计值，存储变量的初始猜测值
     Values initialEstimate;
+    // GTSAM 优化后的估计值
     Values optimizedEstimate;
+    // GTSAM 增量平滑与建图（ISAM2）优化器指针
     ISAM2 *isam;
+    // GTSAM 当前的估计值
     Values isamCurrentEstimate;
+    // 位姿协方差矩阵，用于存储位姿估计的不确定性
     Eigen::MatrixXd poseCovariance;
 
+    // ROS 发布者，发布全局地图点云
     ros::Publisher pubLaserCloudSurround;
+    // ROS 发布者，发布全局激光里程计信息
     ros::Publisher pubLaserOdometryGlobal;
+    // ROS 发布者，发布增量式激光里程计信息
     ros::Publisher pubLaserOdometryIncremental;
+    // ROS 发布者，发布关键位姿点云
     ros::Publisher pubKeyPoses;
+    // ROS 发布者，发布全局路径信息
     ros::Publisher pubPath;
 
+    // ROS 发布者，发布历史关键帧点云，用于回环检测
     ros::Publisher pubHistoryKeyFrames;
+    // ROS 发布者，发布经过 ICP 校正后的关键帧点云
     ros::Publisher pubIcpKeyFrames;
+    // ROS 发布者，发布最近的关键帧点云
     ros::Publisher pubRecentKeyFrames;
+    // ROS 发布者，发布最近的单个关键帧点云
     ros::Publisher pubRecentKeyFrame;
+    // ROS 发布者，发布原始注册后的点云
     ros::Publisher pubCloudRegisteredRaw;
+    // ROS 发布者，发布回环约束边的可视化标记
     ros::Publisher pubLoopConstraintEdge;
 
+    // ROS 发布者，发布激光点云信息
     ros::Publisher pubLaserCloudInfo;
 
-    //publish to fusion node
+    // 发布到融合节点的 ROS 发布者（注释掉，暂未使用）
 //    ros::Publisher pubCloudInfoWithPose;
 //    disco_slam::cloud_info cloudInfoWithPose;
 //    std_msgs::Header cloudHeader;
+    // ROS 订阅者，订阅全局回环信息
     ros::Subscriber subGlobalLoop;
+    // ROS 发布者，发布特征点云
     ros::Publisher pubFeatureCloud;
-    pcl::PointCloud<PointType>::Ptr laserCloudSurfLastFeature; //
-    pcl::PointCloud<PointType>::Ptr laserCloudCornerLastFeature; //
+    // 存储最后一帧角点特征点云的指针
+    pcl::PointCloud<PointType>::Ptr laserCloudSurfLastFeature; 
+    // 存储最后一帧平面特征点云的指针
+    pcl::PointCloud<PointType>::Ptr laserCloudCornerLastFeature; 
 
+    // ROS 订阅者，订阅激光点云信息
     ros::Subscriber subCloud;
+    // ROS 订阅者，订阅 GPS 信息
     ros::Subscriber subGPS;
+    // ROS 订阅者，订阅回环检测信息
     ros::Subscriber subLoop;
 
+    // GPS 消息队列，存储接收到的 GPS 信息
     std::deque<nav_msgs::Odometry> gpsQueue;
+    // 激光点云信息，包含点云特征和相关信息
     disco_slam::cloud_info cloudInfo;
 
+    // 存储角点关键帧点云的向量
     vector<pcl::PointCloud<PointType>::Ptr> cornerCloudKeyFrames;
+    // 存储平面关键帧点云的向量
     vector<pcl::PointCloud<PointType>::Ptr> surfCloudKeyFrames;
     
+    // 存储关键位姿的三维点云指针
     pcl::PointCloud<PointType>::Ptr cloudKeyPoses3D;
+    // 存储关键位姿的 6D 点云指针
     pcl::PointCloud<PointTypePose>::Ptr cloudKeyPoses6D;
+    // 存储关键位姿三维点云的副本指针
     pcl::PointCloud<PointType>::Ptr copy_cloudKeyPoses3D;
+    // 存储关键位姿 6D 点云的副本指针
     pcl::PointCloud<PointTypePose>::Ptr copy_cloudKeyPoses6D;
 
-    pcl::PointCloud<PointType>::Ptr laserCloudCornerLast; // corner feature set from odoOptimization
-    pcl::PointCloud<PointType>::Ptr laserCloudSurfLast; // surf feature set from odoOptimization
-    pcl::PointCloud<PointType>::Ptr laserCloudCornerLastDS; // downsampled corner featuer set from odoOptimization
-    pcl::PointCloud<PointType>::Ptr laserCloudSurfLastDS; // downsampled surf featuer set from odoOptimization
+    // 存储来自里程计优化的角点特征点云指针
+    pcl::PointCloud<PointType>::Ptr laserCloudCornerLast; 
+    // 存储来自里程计优化的平面特征点云指针
+    pcl::PointCloud<PointType>::Ptr laserCloudSurfLast; 
+    // 存储来自里程计优化的下采样角点特征点云指针
+    pcl::PointCloud<PointType>::Ptr laserCloudCornerLastDS; 
+    // 存储来自里程计优化的下采样平面特征点云指针
+    pcl::PointCloud<PointType>::Ptr laserCloudSurfLastDS; 
 
-
+    // 存储待优化的点云指针
     pcl::PointCloud<PointType>::Ptr laserCloudOri;
+    // 存储优化系数的点云指针
     pcl::PointCloud<PointType>::Ptr coeffSel;
 
-    std::vector<PointType> laserCloudOriCornerVec; // corner point holder for parallel computation
+    // 用于并行计算的角点特征点存储向量
+    std::vector<PointType> laserCloudOriCornerVec; 
+    // 用于并行计算的角点特征优化系数存储向量
     std::vector<PointType> coeffSelCornerVec;
+    // 角点特征点是否有效的标志向量
     std::vector<bool> laserCloudOriCornerFlag;
-    std::vector<PointType> laserCloudOriSurfVec; // surf point holder for parallel computation
+    // 用于并行计算的平面特征点存储向量
+    std::vector<PointType> laserCloudOriSurfVec; 
+    // 用于并行计算的平面特征优化系数存储向量
     std::vector<PointType> coeffSelSurfVec;
+    // 平面特征点是否有效的标志向量
     std::vector<bool> laserCloudOriSurfFlag;
 
+    // 存储地图点云的容器，键为关键帧索引，值为角点和平面点云的配对
     map<int, pair<pcl::PointCloud<PointType>, pcl::PointCloud<PointType>>> laserCloudMapContainer;
+    // 存储来自地图的角点特征点云指针
     pcl::PointCloud<PointType>::Ptr laserCloudCornerFromMap;
+    // 存储来自地图的平面特征点云指针
     pcl::PointCloud<PointType>::Ptr laserCloudSurfFromMap;
+    // 存储来自地图的下采样角点特征点云指针
     pcl::PointCloud<PointType>::Ptr laserCloudCornerFromMapDS;
+    // 存储来自地图的下采样平面特征点云指针
     pcl::PointCloud<PointType>::Ptr laserCloudSurfFromMapDS;
 
+    // 用于地图角点特征点云的 KD 树指针
     pcl::KdTreeFLANN<PointType>::Ptr kdtreeCornerFromMap;
+    // 用于地图平面特征点云的 KD 树指针
     pcl::KdTreeFLANN<PointType>::Ptr kdtreeSurfFromMap;
 
+    // 用于周围关键位姿的 KD 树指针
     pcl::KdTreeFLANN<PointType>::Ptr kdtreeSurroundingKeyPoses;
+    // 用于历史关键位姿的 KD 树指针
     pcl::KdTreeFLANN<PointType>::Ptr kdtreeHistoryKeyPoses;
 
+    // 角点特征点云的体素滤波器
     pcl::VoxelGrid<PointType> downSizeFilterCorner;
+    // 平面特征点云的体素滤波器
     pcl::VoxelGrid<PointType> downSizeFilterSurf;
+    // 用于 ICP 匹配的点云体素滤波器
     pcl::VoxelGrid<PointType> downSizeFilterICP;
-    pcl::VoxelGrid<PointType> downSizeFilterSurroundingKeyPoses; // for surrounding key poses of scan-to-map optimization
+    // 用于周围关键位姿的体素滤波器，用于扫描到地图的优化
+    pcl::VoxelGrid<PointType> downSizeFilterSurroundingKeyPoses; 
     
+    // 激光点云信息的时间戳
     ros::Time timeLaserInfoStamp;
+    // 激光点云信息的当前时间（秒）
     double timeLaserInfoCur;
 
+    // 待映射的变换参数数组，依次为 roll, pitch, yaw, x, y, z
     float transformTobeMapped[6];
 
+    // 互斥锁，用于保护共享数据
     std::mutex mtx;
+    // 用于回环信息的互斥锁
     std::mutex mtxLoopInfo;
 
+    // 标志位，指示优化是否退化
     bool isDegenerate = false;
+    // 用于处理退化情况的矩阵
     cv::Mat matP;
 
+    // 来自地图的下采样角点特征点云数量
     int laserCloudCornerFromMapDSNum = 0;
+    // 来自地图的下采样平面特征点云数量
     int laserCloudSurfFromMapDSNum = 0;
+    // 最后一帧下采样角点特征点云数量
     int laserCloudCornerLastDSNum = 0;
+    // 最后一帧下采样平面特征点云数量
     int laserCloudSurfLastDSNum = 0;
 
+    // 标志位，指示是否有回环被闭合
     bool aLoopIsClosed = false;
-    map<int, int> loopIndexContainer; // from new to old
+    // 回环索引容器，键为新关键帧索引，值为旧关键帧索引
+    map<int, int> loopIndexContainer; 
+    // 回环索引队列，存储回环的关键帧索引对
     vector<pair<int, int>> loopIndexQueue;
+    // 回环位姿队列，存储回环的位姿信息
     vector<gtsam::Pose3> loopPoseQueue;
+    // 回环噪声队列，存储回环约束的噪声模型
     vector<gtsam::noiseModel::Diagonal::shared_ptr> loopNoiseQueue;
+    // 回环信息队列，存储接收到的回环检测信息
     deque<std_msgs::Float64MultiArray> loopInfoVec;
 
+    // 全局路径信息
     nav_msgs::Path globalPath;
 
+    // 点关联到地图的变换矩阵
     Eigen::Affine3f transPointAssociateToMap;
+    // 增量里程计变换矩阵的前一时刻值
     Eigen::Affine3f incrementalOdometryAffineFront;
+    // 增量里程计变换矩阵的后一时刻值
     Eigen::Affine3f incrementalOdometryAffineBack;
 
 
+    /**
+     * @brief 地图优化类的构造函数，用于初始化 ISAM2 优化器、ROS 发布者、订阅者以及点云滤波器，并分配内存。
+     * 
+     * 此构造函数会完成以下操作：
+     * 1. 初始化 ISAM2 优化器的参数并创建优化器实例。
+     * 2. 初始化多个 ROS 发布者，用于发布不同类型的消息，如点云、里程计、路径等。
+     * 3. 初始化多个 ROS 订阅者，用于订阅不同类型的消息，如点云信息、GPS 信息、回环检测信息等。
+     * 4. 初始化点云滤波器的参数。
+     * 5. 调用 allocateMemory 函数分配内存。
+     */
     mapOptimization()
     {
+        // 定义 ISAM2 优化器的参数
         ISAM2Params parameters;
+        // 设置重新线性化的阈值，当变量的更新超过该阈值时，进行重新线性化
         parameters.relinearizeThreshold = 0.1;
+        // 设置重新线性化的跳过次数，每处理 1 次进行一次重新线性化
         parameters.relinearizeSkip = 1;
+        // 根据设置的参数创建 ISAM2 优化器实例
         isam = new ISAM2(parameters);
 
+        // 初始化 ROS 发布者，用于发布关键位姿点云
         pubKeyPoses                 = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/trajectory", 1);
+        // 初始化 ROS 发布者，用于发布全局地图点云
         pubLaserCloudSurround       = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/map_global", 1);
+        // 初始化 ROS 发布者，用于发布全局激光里程计信息
         pubLaserOdometryGlobal      = nh.advertise<nav_msgs::Odometry> (robot_id + "/disco_slam/mapping/odometry", 1);
+        // 初始化 ROS 发布者，用于发布增量式激光里程计信息
         pubLaserOdometryIncremental = nh.advertise<nav_msgs::Odometry> (robot_id + "/disco_slam/mapping/odometry_incremental", 1);
+        // 初始化 ROS 发布者，用于发布全局路径信息
         pubPath                     = nh.advertise<nav_msgs::Path>(robot_id + "/disco_slam/mapping/path", 1);
 
-
+        // 注释掉的代码，原本用于发布到融合节点的点云信息
         //for fusion node
         //for
 //        pubCloudInfoWithPose        = nh.advertise<disco_slam::cloud_info> (robot_id + "/disco_slam/mapping/cloud_info", 1);
+        // 初始化 ROS 发布者，用于发布全局特征点云
         pubFeatureCloud = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/feature_cloud_global", 1);
+        // 初始化 ROS 订阅者，订阅全局回环信息，并指定回调函数
         subGlobalLoop = nh.subscribe<disco_slam::context_info>(robot_id + "/context/loop_info", 100, &mapOptimization::contextLoopInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
+        // 初始化 ROS 订阅者，订阅激光点云信息，并指定回调函数
         subCloud = nh.subscribe<disco_slam::cloud_info>(robot_id + "/disco_slam/feature/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
+        // 初始化 ROS 订阅者，订阅 GPS 信息，并指定回调函数
         subGPS   = nh.subscribe<nav_msgs::Odometry> (gpsTopic, 200, &mapOptimization::gpsHandler, this, ros::TransportHints().tcpNoDelay());
+        // 初始化 ROS 订阅者，订阅回环检测信息，并指定回调函数
         subLoop  = nh.subscribe<std_msgs::Float64MultiArray>(robot_id + "/lio_loop/loop_closure_detection", 1, &mapOptimization::loopInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
+        // 初始化 ROS 发布者，用于发布历史关键帧点云，用于回环检测
         pubHistoryKeyFrames   = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/icp_loop_closure_history_cloud", 1);
+        // 初始化 ROS 发布者，用于发布经过 ICP 校正后的关键帧点云
         pubIcpKeyFrames       = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/icp_loop_closure_corrected_cloud", 1);
+        // 初始化 ROS 发布者，用于发布回环约束边的可视化标记
         pubLoopConstraintEdge = nh.advertise<visualization_msgs::MarkerArray>(robot_id + "/disco_slam/mapping/loop_closure_constraints", 1);
 
+        // 初始化 ROS 发布者，用于发布最近的关键帧点云
         pubRecentKeyFrames    = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/map_local", 1);
+        // 初始化 ROS 发布者，用于发布最近的单个关键帧点云
         pubRecentKeyFrame     = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/cloud_registered", 1);
+        // 初始化 ROS 发布者，用于发布原始注册后的点云
         pubCloudRegisteredRaw = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/cloud_registered_raw", 1);
 
-        //for multi robots
+        // 初始化 ROS 发布者，用于多机器人场景下发布激光点云信息
         pubLaserCloudInfo = nh.advertise<disco_slam::cloud_info> (robot_id + "/disco_slam/mapping/cloud_info", 1);
 
+        // 设置角点特征点云体素滤波器的叶子大小
         downSizeFilterCorner.setLeafSize(mappingCornerLeafSize, mappingCornerLeafSize, mappingCornerLeafSize);
+        // 设置平面特征点云体素滤波器的叶子大小
         downSizeFilterSurf.setLeafSize(mappingSurfLeafSize, mappingSurfLeafSize, mappingSurfLeafSize);
+        // 设置用于 ICP 匹配的点云体素滤波器的叶子大小
         downSizeFilterICP.setLeafSize(mappingSurfLeafSize, mappingSurfLeafSize, mappingSurfLeafSize);
-        downSizeFilterSurroundingKeyPoses.setLeafSize(surroundingKeyframeDensity, surroundingKeyframeDensity, surroundingKeyframeDensity); // for surrounding key poses of scan-to-map optimization
+        // 设置用于周围关键位姿的体素滤波器的叶子大小，用于扫描到地图的优化
+        downSizeFilterSurroundingKeyPoses.setLeafSize(surroundingKeyframeDensity, surroundingKeyframeDensity, surroundingKeyframeDensity); 
 
+        // 调用函数分配内存
         allocateMemory();
     }
 
+    /**
+     * @brief 为地图优化类中的各种点云和 KD 树分配内存，并初始化相关变量。
+     * 
+     * 该函数负责为地图优化过程中使用的各种点云数据结构和 KD 树分配内存，
+     * 同时对一些数组和矩阵进行初始化操作，确保后续的地图优化计算能够正常进行。
+     */
     void allocateMemory()
     {
+        // 为存储关键位姿的三维点云分配内存
         cloudKeyPoses3D.reset(new pcl::PointCloud<PointType>());
+        // 为存储关键位姿的 6D 点云分配内存
         cloudKeyPoses6D.reset(new pcl::PointCloud<PointTypePose>());
+        // 为存储关键位姿三维点云的副本分配内存
         copy_cloudKeyPoses3D.reset(new pcl::PointCloud<PointType>());
+        // 为存储关键位姿 6D 点云的副本分配内存
         copy_cloudKeyPoses6D.reset(new pcl::PointCloud<PointTypePose>());
 
+        // 为用于周围关键位姿的 KD 树分配内存
         kdtreeSurroundingKeyPoses.reset(new pcl::KdTreeFLANN<PointType>());
+        // 为用于历史关键位姿的 KD 树分配内存
         kdtreeHistoryKeyPoses.reset(new pcl::KdTreeFLANN<PointType>());
 
-        laserCloudCornerLast.reset(new pcl::PointCloud<PointType>()); // corner feature set from odoOptimization
-        laserCloudSurfLast.reset(new pcl::PointCloud<PointType>()); // surf feature set from odoOptimization
-        laserCloudCornerLastDS.reset(new pcl::PointCloud<PointType>()); // downsampled corner featuer set from odoOptimization
-        laserCloudSurfLastDS.reset(new pcl::PointCloud<PointType>()); // downsampled surf featuer set from odoOptimization
+        // 为来自里程计优化的角点特征点云分配内存
+        laserCloudCornerLast.reset(new pcl::PointCloud<PointType>()); 
+        // 为来自里程计优化的平面特征点云分配内存
+        laserCloudSurfLast.reset(new pcl::PointCloud<PointType>()); 
+        // 为来自里程计优化的下采样角点特征点云分配内存
+        laserCloudCornerLastDS.reset(new pcl::PointCloud<PointType>()); 
+        // 为来自里程计优化的下采样平面特征点云分配内存
+        laserCloudSurfLastDS.reset(new pcl::PointCloud<PointType>()); 
 
+        // 为最后一帧角点特征点云分配内存
         laserCloudCornerLastFeature.reset(new pcl::PointCloud<PointType>());
+        // 为最后一帧平面特征点云分配内存
         laserCloudSurfLastFeature.reset(new pcl::PointCloud<PointType>());
 
+        // 为待优化的点云分配内存
         laserCloudOri.reset(new pcl::PointCloud<PointType>());
+        // 为优化系数的点云分配内存
         coeffSel.reset(new pcl::PointCloud<PointType>());
 
+        // 为并行计算的角点特征点存储向量分配内存
         laserCloudOriCornerVec.resize(N_SCAN * Horizon_SCAN);
+        // 为并行计算的角点特征优化系数存储向量分配内存
         coeffSelCornerVec.resize(N_SCAN * Horizon_SCAN);
+        // 为角点特征点是否有效的标志向量分配内存
         laserCloudOriCornerFlag.resize(N_SCAN * Horizon_SCAN);
+        // 为并行计算的平面特征点存储向量分配内存
         laserCloudOriSurfVec.resize(N_SCAN * Horizon_SCAN);
+        // 为并行计算的平面特征优化系数存储向量分配内存
         coeffSelSurfVec.resize(N_SCAN * Horizon_SCAN);
+        // 为平面特征点是否有效的标志向量分配内存
         laserCloudOriSurfFlag.resize(N_SCAN * Horizon_SCAN);
 
+        // 初始化角点特征点是否有效的标志向量，全部置为 false
         std::fill(laserCloudOriCornerFlag.begin(), laserCloudOriCornerFlag.end(), false);
+        // 初始化平面特征点是否有效的标志向量，全部置为 false
         std::fill(laserCloudOriSurfFlag.begin(), laserCloudOriSurfFlag.end(), false);
 
+        // 为来自地图的角点特征点云分配内存
         laserCloudCornerFromMap.reset(new pcl::PointCloud<PointType>());
+        // 为来自地图的平面特征点云分配内存
         laserCloudSurfFromMap.reset(new pcl::PointCloud<PointType>());
+        // 为来自地图的下采样角点特征点云分配内存
         laserCloudCornerFromMapDS.reset(new pcl::PointCloud<PointType>());
+        // 为来自地图的下采样平面特征点云分配内存
         laserCloudSurfFromMapDS.reset(new pcl::PointCloud<PointType>());
 
+        // 为用于地图角点特征点云的 KD 树分配内存
         kdtreeCornerFromMap.reset(new pcl::KdTreeFLANN<PointType>());
+        // 为用于地图平面特征点云的 KD 树分配内存
         kdtreeSurfFromMap.reset(new pcl::KdTreeFLANN<PointType>());
 
+        // 初始化待映射的变换参数数组，全部置为 0
         for (int i = 0; i < 6; ++i){
             transformTobeMapped[i] = 0;
         }
 
+        // 初始化用于处理退化情况的矩阵，全部置为 0
         matP = cv::Mat(6, 6, CV_32F, cv::Scalar::all(0));
     }
 
+    /**
+     * @brief 处理全局回环信息的回调函数，根据接收到的上下文信息添加回环约束并更新优化结果。
+     * 
+     * 该函数会检查接收到的消息中的机器人 ID 是否与当前机器人 ID 匹配，
+     * 若匹配则提取回环的起始和结束索引、回环位姿和噪声信息，
+     * 并将回环约束添加到 GTSAM 因子图中，然后更新 ISAM2 优化器，
+     * 最后调用 `correctPoses` 和 `publishFrames` 函数进行位姿校正和帧发布。
+     * 
+     * @param msgIn 接收到的全局回环上下文信息的常量指针。
+     */
     void contextLoopInfoHandler(const disco_slam::context_infoConstPtr& msgIn){
+        // 注释掉的代码，原本用于直接返回，不处理全局回环信息
         //close global loop by do nothing
 //        return;
 
+        // 检查接收到的消息中的机器人 ID 是否与当前机器人 ID 匹配，若不匹配则直接返回
         if(msgIn->robotID != robot_id)
             return;
 
+        // 从消息中提取回环的起始索引
         int indexFrom = msgIn->numRing;
+        // 从消息中提取回环的结束索引
         int indexTo = msgIn->numSector;
 
+        // 根据消息中的旋转和平移信息创建回环的位姿对象
         gtsam::Pose3 poseBetween = gtsam::Pose3( gtsam::Rot3::RzRyRx(msgIn->poseRoll, msgIn->posePitch, msgIn->poseYaw),
                                          gtsam::Point3(msgIn->poseX, msgIn->poseY, msgIn->poseZ) );
+        // 从消息中提取噪声分数
         float noiseScore = msgIn->poseIntensity;
+        // 创建一个 6 维向量，用于存储噪声信息
         gtsam::Vector Vector6(6);
+        // 将噪声分数赋值给向量的每个元素
         Vector6 << noiseScore, noiseScore, noiseScore, noiseScore, noiseScore,
             noiseScore;
+        // 根据噪声向量创建噪声模型
         auto noiseBetween = gtsam::noiseModel::Diagonal::Variances(Vector6);
 
+        // 记录当前时间，用于后续可能的性能分析
         double start = ros::Time::now().toSec();;
+        // 将回环约束添加到 GTSAM 因子图中
         gtSAMgraph.add(BetweenFactor<Pose3>(indexFrom, indexTo, poseBetween, noiseBetween));
+        // 更新 ISAM2 优化器
         isam->update(gtSAMgraph);
+        // 多次更新 ISAM2 优化器，以确保优化结果收敛
         isam->update();
         isam->update();
         isam->update();
         isam->update();
         isam->update();
+        // 计算优化后的估计值
         isamCurrentEstimate = isam->calculateEstimate();
 
+        // 设置回环闭合标志为 true
         aLoopIsClosed = true;
 
+        // 调用位姿校正函数，校正关键帧的位姿
         correctPoses();
 
+        // 调用帧发布函数，发布更新后的帧信息
         publishFrames();
 
     }
 
+    /**
+     * @brief 处理激光点云信息的回调函数，当接收到新的激光点云信息时被调用。
+     * 
+     * 该函数从接收到的消息中提取时间戳、点云信息和特征点云，
+     * 并在满足处理间隔条件时，依次执行初始化猜测更新、提取周围关键帧、
+     * 下采样当前扫描点云、进行扫描到地图的优化、保存关键帧和因子、
+     * 校正位姿、发布里程计信息和发布帧信息等操作。
+     * 
+     * @param msgIn 接收到的激光点云信息的常量指针。
+     */
     void laserCloudInfoHandler(const disco_slam::cloud_infoConstPtr& msgIn)
     {
-        // extract time stamp
+        // 提取时间戳信息
+        // 将消息头中的时间戳赋值给 timeLaserInfoStamp
         timeLaserInfoStamp = msgIn->header.stamp;
+        // 将时间戳转换为秒并赋值给 timeLaserInfoCur
         timeLaserInfoCur = msgIn->header.stamp.toSec();
 
-        // extract info and feature cloud
+        // 提取激光点云信息和特征点云
+        // 将接收到的消息内容赋值给 cloudInfo
         cloudInfo = *msgIn;
+        // 将 ROS 消息中的角点特征点云转换为 PCL 点云并存储到 laserCloudCornerLast
         pcl::fromROSMsg(msgIn->cloud_corner,  *laserCloudCornerLast);
+        // 将 ROS 消息中的平面特征点云转换为 PCL 点云并存储到 laserCloudSurfLast
         pcl::fromROSMsg(msgIn->cloud_surface, *laserCloudSurfLast);
 
+        // 加锁，确保线程安全，防止多个线程同时访问共享资源
         std::lock_guard<std::mutex> lock(mtx);
 
+        // 静态变量，记录上一次处理的时间，初始值为 -1
         static double timeLastProcessing = -1;
+        // 检查是否达到地图处理间隔时间
         if (timeLaserInfoCur - timeLastProcessing >= mappingProcessInterval)
         {
+            // 更新上一次处理的时间
             timeLastProcessing = timeLaserInfoCur;
 
+            // 更新初始猜测值，为后续优化提供初始位姿
             updateInitialGuess();
 
+            // 提取周围的关键帧，用于构建局部地图
             extractSurroundingKeyFrames();
 
+            // 对当前扫描的点云进行下采样，减少数据量
             downsampleCurrentScan();
 
+            // 进行扫描到地图的优化，优化当前帧的位姿
             scan2MapOptimization();
 
+            // 保存关键帧和约束因子，用于后续的图优化
             saveKeyFramesAndFactor();
 
+            // 校正关键帧的位姿，确保位姿的准确性
             correctPoses();
 
+            // 发布里程计信息，供其他节点使用
             publishOdometry();
 
+            // 发布更新后的帧信息，如点云、路径等
             publishFrames();
         }
     }
 
+    /**
+     * @brief GPS 消息处理的回调函数，当接收到 GPS 消息时被调用。
+     * 
+     * 该函数的主要功能是将接收到的 GPS 消息添加到 `gpsQueue` 队列中，
+     * 后续程序可以从该队列中获取 GPS 信息，用于地图优化等操作。
+     * 
+     * @param gpsMsg 接收到的 GPS 消息的常量指针，包含 GPS 的位置、姿态等信息。
+     */
     void gpsHandler(const nav_msgs::Odometry::ConstPtr& gpsMsg)
     {
+        // 将接收到的 GPS 消息添加到 gpsQueue 队列的尾部
         gpsQueue.push_back(*gpsMsg);
     }
 
+    /**
+     * @brief 将一个点从当前坐标系转换到地图坐标系。
+     * 
+     * 该函数使用 `transPointAssociateToMap` 变换矩阵，将输入点 `pi` 从当前坐标系转换到地图坐标系，
+     * 并将转换后的点存储在输出点 `po` 中。强度值保持不变。
+     * 
+     * @param pi 指向输入点的常量指针，该点位于当前坐标系中。
+     * @param po 指向输出点的指针，用于存储转换到地图坐标系后的点。
+     */
     void pointAssociateToMap(PointType const * const pi, PointType * const po)
     {
+        // 根据变换矩阵将输入点的 x 坐标转换到地图坐标系
         po->x = transPointAssociateToMap(0,0) * pi->x + transPointAssociateToMap(0,1) * pi->y + transPointAssociateToMap(0,2) * pi->z + transPointAssociateToMap(0,3);
+        // 根据变换矩阵将输入点的 y 坐标转换到地图坐标系
         po->y = transPointAssociateToMap(1,0) * pi->x + transPointAssociateToMap(1,1) * pi->y + transPointAssociateToMap(1,2) * pi->z + transPointAssociateToMap(1,3);
+        // 根据变换矩阵将输入点的 z 坐标转换到地图坐标系
         po->z = transPointAssociateToMap(2,0) * pi->x + transPointAssociateToMap(2,1) * pi->y + transPointAssociateToMap(2,2) * pi->z + transPointAssociateToMap(2,3);
+        // 保持输入点的强度值不变
         po->intensity = pi->intensity;
     }
 
+    /**
+     * @brief 将输入点云根据给定的变换信息转换到新的坐标系。
+     * 
+     * 该函数使用 `transformIn` 中的平移和旋转信息创建一个变换矩阵，
+     * 然后将输入点云 `cloudIn` 中的所有点根据该变换矩阵转换到新的坐标系，
+     * 并返回转换后的点云。
+     * 
+     * @param cloudIn 输入点云的指针，包含需要转换的所有点。
+     * @param transformIn 指向包含变换信息（平移和旋转）的点的指针。
+     * @return pcl::PointCloud<PointType>::Ptr 转换后的点云的指针。
+     */
     pcl::PointCloud<PointType>::Ptr transformPointCloud(pcl::PointCloud<PointType>::Ptr cloudIn, PointTypePose* transformIn)
     {
+        // 创建一个新的点云对象，用于存储转换后的点
         pcl::PointCloud<PointType>::Ptr cloudOut(new pcl::PointCloud<PointType>());
 
+        // 获取输入点云的大小
         int cloudSize = cloudIn->size();
+        // 调整输出点云的大小，使其与输入点云相同
         cloudOut->resize(cloudSize);
 
+        // 根据 `transformIn` 中的平移和旋转信息创建一个仿射变换矩阵
         Eigen::Affine3f transCur = pcl::getTransformation(transformIn->x, transformIn->y, transformIn->z, transformIn->roll, transformIn->pitch, transformIn->yaw);
         
+        // 使用 OpenMP 并行计算，加速点云转换过程
         #pragma omp parallel for num_threads(numberOfCores)
         for (int i = 0; i < cloudSize; ++i)
         {
+            // 获取输入点云中的当前点
             const auto &pointFrom = cloudIn->points[i];
+            // 根据变换矩阵将当前点的 x 坐标转换到新的坐标系
             cloudOut->points[i].x = transCur(0,0) * pointFrom.x + transCur(0,1) * pointFrom.y + transCur(0,2) * pointFrom.z + transCur(0,3);
+            // 根据变换矩阵将当前点的 y 坐标转换到新的坐标系
             cloudOut->points[i].y = transCur(1,0) * pointFrom.x + transCur(1,1) * pointFrom.y + transCur(1,2) * pointFrom.z + transCur(1,3);
+            // 根据变换矩阵将当前点的 z 坐标转换到新的坐标系
             cloudOut->points[i].z = transCur(2,0) * pointFrom.x + transCur(2,1) * pointFrom.y + transCur(2,2) * pointFrom.z + transCur(2,3);
+            // 保持当前点的强度值不变
             cloudOut->points[i].intensity = pointFrom.intensity;
         }
         return cloudOut;
     }
 
+    /**
+     * @brief 将 `PointTypePose` 类型的点转换为 `gtsam::Pose3` 类型的位姿。
+     * 
+     * 该函数从 `thisPoint` 中提取平移和旋转信息，并将其转换为 `gtsam::Pose3` 类型的位姿。
+     * 
+     * @param thisPoint 包含平移和旋转信息的 `PointTypePose` 类型的点。
+     * @return gtsam::Pose3 转换后的 `gtsam::Pose3` 类型的位姿。
+     */
     gtsam::Pose3 pclPointTogtsamPose3(PointTypePose thisPoint)
     {
+        // 从 `thisPoint` 中提取旋转信息创建旋转矩阵，提取平移信息创建三维点，然后组合成 `gtsam::Pose3` 类型的位姿
         return gtsam::Pose3(gtsam::Rot3::RzRyRx(double(thisPoint.roll), double(thisPoint.pitch), double(thisPoint.yaw)),
                                   gtsam::Point3(double(thisPoint.x),    double(thisPoint.y),     double(thisPoint.z)));
     }
 
+    /**
+     * @brief 将一个浮点数数组表示的变换信息转换为 `gtsam::Pose3` 类型的位姿。
+     * 
+     * 该函数从 `transformIn` 数组中提取旋转和平移信息，并将其转换为 `gtsam::Pose3` 类型的位姿。
+     * 
+     * @param transformIn 包含旋转和平移信息的浮点数数组，前三个元素为旋转信息，后三个元素为平移信息。
+     * @return gtsam::Pose3 转换后的 `gtsam::Pose3` 类型的位姿。
+     */
     gtsam::Pose3 trans2gtsamPose(float transformIn[])
     {
+        // 从 `transformIn` 数组中提取旋转信息创建旋转矩阵，提取平移信息创建三维点，然后组合成 `gtsam::Pose3` 类型的位姿
         return gtsam::Pose3(gtsam::Rot3::RzRyRx(transformIn[0], transformIn[1], transformIn[2]), 
                                   gtsam::Point3(transformIn[3], transformIn[4], transformIn[5]));
     }
 
+    /**
+     * @brief 将 `PointTypePose` 类型的点转换为 `Eigen::Affine3f` 类型的仿射变换矩阵。
+     * 
+     * 该函数从 `thisPoint` 中提取平移和旋转信息，并将其转换为 `Eigen::Affine3f` 类型的仿射变换矩阵。
+     * 
+     * @param thisPoint 包含平移和旋转信息的 `PointTypePose` 类型的点。
+     * @return Eigen::Affine3f 转换后的 `Eigen::Affine3f` 类型的仿射变换矩阵。
+     */
     Eigen::Affine3f pclPointToAffine3f(PointTypePose thisPoint)
     { 
+        // 根据 `thisPoint` 中的平移和旋转信息创建一个 `Eigen::Affine3f` 类型的仿射变换矩阵
         return pcl::getTransformation(thisPoint.x, thisPoint.y, thisPoint.z, thisPoint.roll, thisPoint.pitch, thisPoint.yaw);
     }
 
+    /**
+     * @brief 将一个浮点数数组表示的变换信息转换为 `Eigen::Affine3f` 类型的仿射变换矩阵。
+     * 
+     * 该函数从 `transformIn` 数组中提取旋转和平移信息，并将其转换为 `Eigen::Affine3f` 类型的仿射变换矩阵。
+     * 
+     * @param transformIn 包含旋转和平移信息的浮点数数组，前三个元素为旋转信息，后三个元素为平移信息。
+     * @return Eigen::Affine3f 转换后的 `Eigen::Affine3f` 类型的仿射变换矩阵。
+     */
     Eigen::Affine3f trans2Affine3f(float transformIn[])
     {
+        // 根据 `transformIn` 数组中的平移和旋转信息创建一个 `Eigen::Affine3f` 类型的仿射变换矩阵
         return pcl::getTransformation(transformIn[3], transformIn[4], transformIn[5], transformIn[0], transformIn[1], transformIn[2]);
     }
 
+    /**
+     * @brief 将一个浮点数数组表示的变换信息转换为 `PointTypePose` 类型的点。
+     * 
+     * 该函数从 `transformIn` 数组中提取旋转和平移信息，并将其存储在 `PointTypePose` 类型的点中。
+     * 
+     * @param transformIn 包含旋转和平移信息的浮点数数组，前三个元素为旋转信息，后三个元素为平移信息。
+     * @return PointTypePose 转换后的 `PointTypePose` 类型的点。
+     */
     PointTypePose trans2PointTypePose(float transformIn[])
     {
+        // 创建一个 `PointTypePose` 类型的点，用于存储转换后的信息
         PointTypePose thisPose6D;
+        // 从 `transformIn` 数组中提取平移信息存储到 `thisPose6D` 中
         thisPose6D.x = transformIn[3];
         thisPose6D.y = transformIn[4];
         thisPose6D.z = transformIn[5];
+        // 从 `transformIn` 数组中提取旋转信息存储到 `thisPose6D` 中
         thisPose6D.roll  = transformIn[0];
         thisPose6D.pitch = transformIn[1];
         thisPose6D.yaw   = transformIn[2];
         return thisPose6D;
     }
 
+    /**
+     * @brief 可视化全局地图的线程函数，负责定期可视化全局地图，并在需要时将地图保存为 PCD 文件。
+     * 
+     * 该线程会以固定频率调用 `publishGlobalMap` 函数来可视化全局地图。当 `savePCD` 标志为 `true` 时，
+     * 线程会将全局地图的相关信息保存为 PCD 文件，包括关键帧位姿、变换信息、角点特征点云、平面特征点云和全局点云地图。
+     */
+    // 重要函数 --- 可视化全局地图的线程函数，负责定期可视化全局地图，并在需要时将地图保存为 PCD 文件。
     void visualizeGlobalMapThread()
     {
+        // 创建一个 ROS 速率对象，设置频率为 0.2Hz，即每 5 秒执行一次循环
         ros::Rate rate(0.2);
+        // 当 ROS 节点正常运行时，持续执行循环
         while (ros::ok()){
+            // 让线程休眠，以保证按照设定的频率执行后续操作
             rate.sleep();
+            // 调用 publishGlobalMap 函数发布全局地图进行可视化
             publishGlobalMap();
         }
 
+        // 如果 savePCD 标志为 false，则直接返回，不进行地图保存操作
         if (savePCD == false)
             return;
 
+        // 输出提示信息，表明开始保存地图到 PCD 文件
         cout << "****************************************************" << endl;
         cout << "Saving map to pcd files ..." << endl;
-        // create directory and remove old files;
+        // 将保存 PCD 文件的目录路径与用户主目录拼接
         savePCDDirectory = std::getenv("HOME") + savePCDDirectory;
+        // 删除指定目录下的所有文件
         int unused = system((std::string("exec rm -r ") + savePCDDirectory).c_str());
+        // 创建指定目录
         unused = system((std::string("mkdir ") + savePCDDirectory).c_str());
-        // save key frame transformations
+        // 保存关键帧位姿信息到 trajectory.pcd 文件
         pcl::io::savePCDFileASCII(savePCDDirectory + "trajectory.pcd", *cloudKeyPoses3D);
+        // 保存关键帧变换信息到 transformations.pcd 文件
         pcl::io::savePCDFileASCII(savePCDDirectory + "transformations.pcd", *cloudKeyPoses6D);
-        // extract global point cloud map        
+        // 定义用于存储全局角点特征点云的指针
         pcl::PointCloud<PointType>::Ptr globalCornerCloud(new pcl::PointCloud<PointType>());
+        // 定义用于存储下采样后的全局角点特征点云的指针
         pcl::PointCloud<PointType>::Ptr globalCornerCloudDS(new pcl::PointCloud<PointType>());
+        // 定义用于存储全局平面特征点云的指针
         pcl::PointCloud<PointType>::Ptr globalSurfCloud(new pcl::PointCloud<PointType>());
+        // 定义用于存储下采样后的全局平面特征点云的指针
         pcl::PointCloud<PointType>::Ptr globalSurfCloudDS(new pcl::PointCloud<PointType>());
+        // 定义用于存储全局点云地图的指针
         pcl::PointCloud<PointType>::Ptr globalMapCloud(new pcl::PointCloud<PointType>());
+        // 遍历所有关键帧，将角点和平面特征点云进行变换并累加到全局点云中
         for (int i = 0; i < (int)cloudKeyPoses3D->size(); i++) {
             *globalCornerCloud += *transformPointCloud(cornerCloudKeyFrames[i],  &cloudKeyPoses6D->points[i]);
             *globalSurfCloud   += *transformPointCloud(surfCloudKeyFrames[i],    &cloudKeyPoses6D->points[i]);
+            // 输出处理进度信息
             cout << "\r" << std::flush << "Processing feature cloud " << i << " of " << cloudKeyPoses6D->size() << " ...";
         }
-        // down-sample and save corner cloud
+        // 对全局角点特征点云进行下采样
         downSizeFilterCorner.setInputCloud(globalCornerCloud);
         downSizeFilterCorner.filter(*globalCornerCloudDS);
+        // 将下采样后的全局角点特征点云保存到 cloudCorner.pcd 文件
         pcl::io::savePCDFileASCII(savePCDDirectory + "cloudCorner.pcd", *globalCornerCloudDS);
-        // down-sample and save surf cloud
+        // 对全局平面特征点云进行下采样
         downSizeFilterSurf.setInputCloud(globalSurfCloud);
         downSizeFilterSurf.filter(*globalSurfCloudDS);
+        // 将下采样后的全局平面特征点云保存到 cloudSurf.pcd 文件
         pcl::io::savePCDFileASCII(savePCDDirectory + "cloudSurf.pcd", *globalSurfCloudDS);
-        // down-sample and save global point cloud map
+        // 将全局角点和平面特征点云合并到全局点云地图中
         *globalMapCloud += *globalCornerCloud;
         *globalMapCloud += *globalSurfCloud;
+        // 将全局点云地图保存到 cloudGlobal.pcd 文件
         pcl::io::savePCDFileASCII(savePCDDirectory + "cloudGlobal.pcd", *globalMapCloud);
+        // 输出提示信息，表明地图保存完成
         cout << "****************************************************" << endl;
         cout << "Saving map to pcd files completed" << endl;
     }
 
+    /**
+     * @brief 发布全局地图点云用于可视化。
+     * 
+     * 该函数会检查是否有订阅者订阅全局地图点云，若有则从关键位姿中筛选出
+     * 距离当前位姿一定范围内的关键帧，对这些关键帧进行下采样，然后将对应的
+     * 角点和平面特征点云进行变换并合并，最后再次下采样并发布全局地图点云。
+     */
     void publishGlobalMap()
     {
+        // 检查是否有订阅者订阅全局地图点云，如果没有则直接返回，不进行后续操作
         if (pubLaserCloudSurround.getNumSubscribers() == 0)
             return;
 
+        // 检查是否存在关键位姿点云，如果不存在则直接返回，不进行后续操作
         if (cloudKeyPoses3D->points.empty() == true)
             return;
 
+        // 创建用于全局地图的 KD 树，用于查找附近的关键帧
         pcl::KdTreeFLANN<PointType>::Ptr kdtreeGlobalMap(new pcl::KdTreeFLANN<PointType>());;
+        // 存储筛选出的全局地图关键位姿点云
         pcl::PointCloud<PointType>::Ptr globalMapKeyPoses(new pcl::PointCloud<PointType>());
+        // 存储下采样后的全局地图关键位姿点云
         pcl::PointCloud<PointType>::Ptr globalMapKeyPosesDS(new pcl::PointCloud<PointType>());
+        // 存储筛选出的全局地图关键帧点云
         pcl::PointCloud<PointType>::Ptr globalMapKeyFrames(new pcl::PointCloud<PointType>());
+        // 存储下采样后的全局地图关键帧点云
         pcl::PointCloud<PointType>::Ptr globalMapKeyFramesDS(new pcl::PointCloud<PointType>());
 
-        // kd-tree to find near key frames to visualize
+        // 用于存储 KD 树搜索结果的索引和平方距离
         std::vector<int> pointSearchIndGlobalMap;
         std::vector<float> pointSearchSqDisGlobalMap;
-        // search near key frames to visualize
+
+        // 搜索距离当前关键位姿一定范围内的关键帧
+        // 加锁，确保线程安全，防止在搜索过程中关键位姿点云被修改
         mtx.lock();
+        // 设置 KD 树的输入点云为全局关键位姿点云
         kdtreeGlobalMap->setInputCloud(cloudKeyPoses3D);
+        /**
+         * @brief 使用 KD 树在全局关键位姿点云中进行半径搜索，查找距离当前关键位姿一定范围内的所有关键位姿。
+         * 
+         * 该函数会在以当前关键位姿为中心，以 `globalMapVisualizationSearchRadius` 为半径的球形区域内，
+         * 搜索全局关键位姿点云中的所有关键位姿。搜索结果会存储在 `pointSearchIndGlobalMap` 和 `pointSearchSqDisGlobalMap` 中。
+         * 
+         * @param cloudKeyPoses3D->back() 作为搜索中心的当前关键位姿点，即全局关键位姿点云的最后一个点。
+         * @param globalMapVisualizationSearchRadius 搜索半径，用于定义搜索的球形区域大小。
+         * @param pointSearchIndGlobalMap 存储搜索到的关键位姿点在全局关键位姿点云中的索引。
+         * @param pointSearchSqDisGlobalMap 存储搜索到的关键位姿点与搜索中心的平方距离。
+         * @param 0 表示不限制搜索到的点的数量，即返回所有满足条件的点。
+         */
+        // 调用 KD 树的半径搜索函数，在全局关键位姿点云中查找距离当前关键位姿一定范围内的所有关键位姿
+        // 以当前关键位姿为中心，在指定半径内搜索附近的关键帧
         kdtreeGlobalMap->radiusSearch(cloudKeyPoses3D->back(), globalMapVisualizationSearchRadius, pointSearchIndGlobalMap, pointSearchSqDisGlobalMap, 0);
+        // 解锁，允许其他线程访问关键位姿点云
         mtx.unlock();
 
+        // 将搜索到的关键位姿添加到全局地图关键位姿点云中
         for (int i = 0; i < (int)pointSearchIndGlobalMap.size(); ++i)
             globalMapKeyPoses->push_back(cloudKeyPoses3D->points[pointSearchIndGlobalMap[i]]);
-        // downsample near selected key frames
+
+        // 创建体素滤波器，用于对全局地图关键位姿点云进行下采样
         pcl::VoxelGrid<PointType> downSizeFilterGlobalMapKeyPoses; // for global map visualization
+        // 设置体素滤波器的叶子大小（x降采样,y降采样,z降采样）
         downSizeFilterGlobalMapKeyPoses.setLeafSize(globalMapVisualizationPoseDensity, globalMapVisualizationPoseDensity, globalMapVisualizationPoseDensity); // for global map visualization
+        // 设置体素滤波器的输入点云为全局地图关键位姿点云
         downSizeFilterGlobalMapKeyPoses.setInputCloud(globalMapKeyPoses);
+        // 执行下采样操作，结果存储在 globalMapKeyPosesDS 中
         downSizeFilterGlobalMapKeyPoses.filter(*globalMapKeyPosesDS);
 
-        // extract visualized and downsampled key frames
+        // 提取可视化并下采样后的关键帧
         for (int i = 0; i < (int)globalMapKeyPosesDS->size(); ++i){
+            // 检查当前关键位姿是否在指定搜索半径内，若不在则跳过
             if (pointDistance(globalMapKeyPosesDS->points[i], cloudKeyPoses3D->back()) > globalMapVisualizationSearchRadius)
                 continue;
+            // 获取当前关键帧的索引
             int thisKeyInd = (int)globalMapKeyPosesDS->points[i].intensity;
+            // 将当前关键帧的角点特征点云进行变换并添加到全局地图关键帧点云中
             *globalMapKeyFrames += *transformPointCloud(cornerCloudKeyFrames[thisKeyInd],  &cloudKeyPoses6D->points[thisKeyInd]);
+            // 将当前关键帧的平面特征点云进行变换并添加到全局地图关键帧点云中
             *globalMapKeyFrames += *transformPointCloud(surfCloudKeyFrames[thisKeyInd],    &cloudKeyPoses6D->points[thisKeyInd]);
         }
-        // downsample visualized points
+
+        // 创建体素滤波器，用于对全局地图关键帧点云进行下采样
         pcl::VoxelGrid<PointType> downSizeFilterGlobalMapKeyFrames; // for global map visualization
+        // 设置体素滤波器的叶子大小
         downSizeFilterGlobalMapKeyFrames.setLeafSize(globalMapVisualizationLeafSize, globalMapVisualizationLeafSize, globalMapVisualizationLeafSize); // for global map visualization
+        // 设置体素滤波器的输入点云为全局地图关键帧点云
         downSizeFilterGlobalMapKeyFrames.setInputCloud(globalMapKeyFrames);
+        // 执行下采样操作，结果存储在 globalMapKeyFramesDS 中
         downSizeFilterGlobalMapKeyFrames.filter(*globalMapKeyFramesDS);
+
+        // 发布下采样后的全局地图关键帧点云
         publishCloud(&pubLaserCloudSurround, globalMapKeyFramesDS, timeLaserInfoStamp, robot_id + "/" + odometryFrame);
     }
 
+    /**
+     * @brief 回环检测线程函数，用于定期执行回环检测和可视化操作。
+     * 
+     * 该线程会在回环检测功能启用的情况下运行，按照设定的频率执行回环检测操作，并将回环检测的结果进行可视化展示。
+     * 当 ROS 节点正常运行时，线程会持续工作，直到节点关闭。
+     */
+    // 重要函数 --- 回环检测线程函数
     void loopClosureThread()
     {
+        // 检查回环检测功能是否启用，如果未启用则直接返回，不执行后续操作
         if (loopClosureEnableFlag == false)
             return;
 
+        // 创建一个 ROS 速率对象，用于控制回环检测操作的执行频率
         ros::Rate rate(loopClosureFrequency);
+        // 当 ROS 节点正常运行时，持续执行回环检测和可视化操作
         while (ros::ok())
         {
+            // 让线程休眠，以保证按照设定的频率执行后续操作
             rate.sleep();
+            // 调用 performLoopClosure 函数执行回环检测操作
             performLoopClosure();
+            // 调用 visualizeLoopClosure 函数将回环检测的结果进行可视化展示
             visualizeLoopClosure();
         }
     }
 
+    /**
+     * @brief 处理回环检测信息的回调函数，当接收到回环检测消息时被调用。
+     * 
+     * 该函数会将接收到的回环检测消息添加到 `loopInfoVec` 队列中，
+     * 同时确保队列的长度不超过 5 条，若超过则移除最早的消息。
+     * 
+     * @param loopMsg 接收到的回环检测消息的常量指针，消息类型为 `std_msgs::Float64MultiArray`。
+     */
     void loopInfoHandler(const std_msgs::Float64MultiArray::ConstPtr& loopMsg)
     {
+        // 加锁，确保线程安全，防止多个线程同时访问 loopInfoVec 队列
         std::lock_guard<std::mutex> lock(mtxLoopInfo);
+        // 检查接收到的消息数据长度是否为 2，若不是则直接返回，不处理该消息
         if (loopMsg->data.size() != 2)
             return;
 
+        // 将接收到的回环检测消息添加到 loopInfoVec 队列的尾部
         loopInfoVec.push_back(*loopMsg);
 
+        // 确保 loopInfoVec 队列的长度不超过 5 条，若超过则移除最早的消息
         while (loopInfoVec.size() > 5)
             loopInfoVec.pop_front();
     }
@@ -759,63 +1186,88 @@ public:
         pubLoopConstraintEdge.publish(markerArray);
     }
 
+    /**
+     * @brief 更新初始猜测值，为后续的地图优化提供初始位姿。
+     * 
+     * 在进行任何处理之前保存当前的变换信息，根据不同的传感器数据（IMU、里程计）
+     * 来更新初始猜测的位姿信息。如果没有关键位姿点云，则使用 IMU 数据初始化位姿；
+     * 如果有里程计数据，则使用里程计的预积分估计来更新位姿；
+     * 如果只有 IMU 数据，则使用 IMU 的增量估计来更新位姿的旋转部分。
+     */
     void updateInitialGuess()
     {
-        // save current transformation before any processing
+        // 在进行任何处理之前保存当前的变换信息
         incrementalOdometryAffineFront = trans2Affine3f(transformTobeMapped);
 
         static Eigen::Affine3f lastImuTransformation;
-        // initialization
+        // 初始化
         if (cloudKeyPoses3D->points.empty())
         {
+            // 使用 IMU 数据初始化位姿的旋转部分
             transformTobeMapped[0] = cloudInfo.imuRollInit;
             transformTobeMapped[1] = cloudInfo.imuPitchInit;
             transformTobeMapped[2] = cloudInfo.imuYawInit;
 
+            // 如果不使用 IMU 航向初始化，则将偏航角设为 0
             if (!useImuHeadingInitialization)
                 transformTobeMapped[2] = 0;
 
-            lastImuTransformation = pcl::getTransformation(0, 0, 0, cloudInfo.imuRollInit, cloudInfo.imuPitchInit, cloudInfo.imuYawInit); // save imu before return;
+            // 保存 IMU 变换信息
+            lastImuTransformation = pcl::getTransformation(0, 0, 0, cloudInfo.imuRollInit, cloudInfo.imuPitchInit, cloudInfo.imuYawInit); 
             return;
         }
 
-        // use imu pre-integration estimation for pose guess
+        // 使用 IMU 预积分估计进行位姿猜测
         static bool lastImuPreTransAvailable = false;
         static Eigen::Affine3f lastImuPreTransformation;
         if (cloudInfo.odomAvailable == true)
         {
+            // 根据里程计的初始猜测值创建变换矩阵
             Eigen::Affine3f transBack = pcl::getTransformation(cloudInfo.initialGuessX,    cloudInfo.initialGuessY,     cloudInfo.initialGuessZ, 
                                                                cloudInfo.initialGuessRoll, cloudInfo.initialGuessPitch, cloudInfo.initialGuessYaw);
             if (lastImuPreTransAvailable == false)
             {
+                // 保存初始的 IMU 预积分变换矩阵
                 lastImuPreTransformation = transBack;
                 lastImuPreTransAvailable = true;
             } else {
+                // 计算增量变换矩阵
                 Eigen::Affine3f transIncre = lastImuPreTransformation.inverse() * transBack;
+                // 获取当前待映射的变换矩阵
                 Eigen::Affine3f transTobe = trans2Affine3f(transformTobeMapped);
+                // 计算最终的变换矩阵
                 Eigen::Affine3f transFinal = transTobe * transIncre;
+                // 从最终的变换矩阵中提取平移和旋转信息
                 pcl::getTranslationAndEulerAngles(transFinal, transformTobeMapped[3], transformTobeMapped[4], transformTobeMapped[5], 
                                                               transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]);
 
+                // 更新上一次的 IMU 预积分变换矩阵
                 lastImuPreTransformation = transBack;
 
-                lastImuTransformation = pcl::getTransformation(0, 0, 0, cloudInfo.imuRollInit, cloudInfo.imuPitchInit, cloudInfo.imuYawInit); // save imu before return;
+                // 保存 IMU 变换信息
+                lastImuTransformation = pcl::getTransformation(0, 0, 0, cloudInfo.imuRollInit, cloudInfo.imuPitchInit, cloudInfo.imuYawInit); 
                 return;
             }
         }
 
-        // use imu incremental estimation for pose guess (only rotation)
+        // 使用 IMU 增量估计进行位姿猜测（仅旋转部分）
         if (cloudInfo.imuAvailable == true)
         {
+            // 根据 IMU 数据创建变换矩阵
             Eigen::Affine3f transBack = pcl::getTransformation(0, 0, 0, cloudInfo.imuRollInit, cloudInfo.imuPitchInit, cloudInfo.imuYawInit);
+            // 计算增量变换矩阵
             Eigen::Affine3f transIncre = lastImuTransformation.inverse() * transBack;
 
+            // 获取当前待映射的变换矩阵
             Eigen::Affine3f transTobe = trans2Affine3f(transformTobeMapped);
+            // 计算最终的变换矩阵
             Eigen::Affine3f transFinal = transTobe * transIncre;
+            // 从最终的变换矩阵中提取平移和旋转信息
             pcl::getTranslationAndEulerAngles(transFinal, transformTobeMapped[3], transformTobeMapped[4], transformTobeMapped[5], 
-                                                          transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]);
+                                                              transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]);
 
-            lastImuTransformation = pcl::getTransformation(0, 0, 0, cloudInfo.imuRollInit, cloudInfo.imuPitchInit, cloudInfo.imuYawInit); // save imu before return;
+            // 保存 IMU 变换信息
+            lastImuTransformation = pcl::getTransformation(0, 0, 0, cloudInfo.imuRollInit, cloudInfo.imuPitchInit, cloudInfo.imuYawInit); 
             return;
         }
     }
@@ -1732,21 +2184,52 @@ public:
 };
 
 
+/**
+ * @brief 主函数，程序的入口点，负责初始化 ROS 节点，启动地图优化相关线程并保持 ROS 节点运行。
+ * 
+ * @param argc 命令行参数的数量。
+ * @param argv 命令行参数的字符串数组。
+ * @return int 程序退出状态码，0 表示正常退出。
+ */
 int main(int argc, char** argv)
 {
+    // 初始化 ROS 节点，节点名为 "disco_slam"
     ros::init(argc, argv, "disco_slam");
 
+    // 创建 mapOptimization 类的一个实例 MO
     mapOptimization MO;
 
+    // 在终端输出绿色的提示信息，表明地图优化已经启动
     ROS_INFO("\033[1;32m----> Map Optimization Started.\033[0m");
     
+    // 此处的多线程与ROS多线程不同
+    // C++ 标准库提供的多线程工具，可用于创建任意功能的线程。
+    // 可以创建执行任意函数的线程，不仅限于 ROS 相关任务。
+    // 需要手动管理线程的生命周期，包括创建、启动、等待线程结束（使用 join 或 detach 方法）。
+    // std::thread 创建的线程和 ROS 的消息处理机制没有直接关联，需要用户自己协调线程间的通信和同步。
+
+    // 创建一个新线程，调用 mapOptimization 类的 loopClosureThread 方法，传入 MO 实例的指针
     std::thread loopthread(&mapOptimization::loopClosureThread, &MO);
+    // 创建另一个新线程，调用 mapOptimization 类的 visualizeGlobalMapThread 方法，传入 MO 实例的指针
     std::thread visualizeMapThread(&mapOptimization::visualizeGlobalMapThread, &MO);
 
+    // 进入 ROS 的主循环，处理订阅的消息和回调函数，直到节点被关闭
     ros::spin();
 
+    // 等待 loopthread 线程结束
     loopthread.join();
+    // 等待 visualizeMapThread 线程结束
     visualizeMapThread.join();
 
+    /*
+    | 比较项 | ros::MultiThreadedSpinner | std::thread | 
+    | ----- | ------------------------- | ----------- | 
+    |  用途  |    专门处理 ROS 回调函数    | 可执行任意函数 | 
+    | 集成度 |      与 ROS 深度集成        |  与 ROS 解耦 | 
+    | 线程管理 |        自动管理           |   手动管理   | 
+    | 应用场景 | 适用于提高 ROS 消息处理的并发性能 | 适用于实现自定义的多线程任务 |
+    */
+    
+    // 程序正常退出，返回 0
     return 0;
 }

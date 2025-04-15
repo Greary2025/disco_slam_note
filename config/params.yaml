@@ -77,6 +77,7 @@ disco_slam:
   # CPU参数
   numberOfCores: 4                              # 用于地图优化的核心数
   mappingProcessInterval: 0.15                  # 秒，调节地图构建频率
+  # （优化点云加载的时间间隔，每次把0.15秒的点云加载到优化器）
 
   # 周围地图
   surroundingkeyframeAddingDistThreshold: 1.0   # 米，调节关键帧添加阈值
