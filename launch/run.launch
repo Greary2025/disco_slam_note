@@ -1,4 +1,7 @@
 <launch>
+    <!-- 启用 use_sim_time 参数 -->
+    <!-- <param name="/use_sim_time" value="true" /> -->
+
     <!-- 定义参数 -->
     <arg name="no"      default="1"/>  <!-- 编号参数 -->
     <arg name="project" default="disco_slam"/>  <!-- 项目名称 -->

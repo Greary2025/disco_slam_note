@@ -138,6 +138,12 @@ public:
         // 参数2: 1 - 消息队列长度，只保留最新的1条消息
         // 消息类型为自定义的disco_slam::cloud_info，包含点云的结构化信息
         pubLaserCloudInfo = nh.advertise<disco_slam::cloud_info> (robot_id + "/disco_slam/deskew/cloud_info", 1);
+
+        // 分配内存并初始化参数
+        allocateMemory();
+        resetParameters();
+        // 设置PCL日志级别为错误，减少不必要的输出
+        pcl::console::setVerbosityLevel(pcl::console::L_ERROR);
     }
     /*
         * 内存分配函数：为点云处理分配和初始化必要的内存空间
