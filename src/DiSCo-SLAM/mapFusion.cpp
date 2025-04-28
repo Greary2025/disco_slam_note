@@ -183,6 +183,9 @@ std::unordered_map<int, std::vector<std::tuple<int, int, gtsam::Pose3>>> _loop_q
 
 // 全局变换信息
 std::unordered_map<std::string, std::vector<PointTypePose>> _global_odom_trans;
+// 
+std::unordered_map< int, std::vector<int> > _loop_accept_queue;
+// 全局变换信息优化
 std::unordered_map<int, std::vector<PointTypePose>> _global_map_trans;
 std::unordered_map<int, PointTypePose> _global_map_trans_optimized;
 
@@ -1746,6 +1749,9 @@ private:
 
         // 设置初始估计值(相对位姿变换)
         initial.insert(0, initial_pose_1 * initial_pose_0.inverse());
+
+        gtsam::Pose3 p, measurement;
+        float noiseScore;
 
         // 遍历闭环接受队列中的所有位姿对
         for (auto i:_loop_accept_queue[_robot_this_th]){
