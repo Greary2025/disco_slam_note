@@ -33,7 +33,7 @@ disco_slam:
   Horizon_SCAN: 1800                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
   # Horizon_SCAN: 3600                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
   downsampleRate: 1                           # 默认：1。如果点太多，可以降采样数据。例如，16 = 64 / 4，16 = 16 / 1
-  lidarMinRange: 1.0                          # 默认：1.0，使用的最小激光雷达范围
+  lidarMinRange: 1.0                          # 默认：1.0，使用的最小激光雷达范围，单位是米
   lidarMaxRange: 1000.0                       # 默认：1000.0，使用的最大激光雷达范围
 
   # IMU设置
@@ -45,13 +45,18 @@ disco_slam:
   imuRPYWeight: 0.01
 
   # 外参（激光雷达 -> IMU）
+  # 定义了平移关系
   extrinsicTrans: [0.0, 0.0, 0.0]
+  # 定义了旋转关系（旋转矩阵，180）
   extrinsicRot: [-1, 0, 0,
                   0, 1, 0,
                   0, 0, -1]
-  extrinsicRPY: [0,  1, 0,
-                 -1, 0, 0,
+  # 定义了旋转关系（欧拉角，0或180）
+  extrinsicRPY: [0, -1, 0,
+                  1, 0, 0,
                   0, 0, 1]
+  # 雷达坐标系的点 = 旋转矩阵extrinsicRot * IMU坐标系的点（其实是IMU的值）
+  # 目的：把IMU的位置和旋转发布到雷达坐标系下，方便雷达处理
 #  extrinsicRot: [1, 0, 0,
 #                   0, 1, 0,
 #                   0, 0, 1]
@@ -59,11 +64,11 @@ disco_slam:
 #                   0, 1, 0,
 #                   0, 0, 1]
 
-  # LOAM特征阈值
-  edgeThreshold: 1.0
-  surfThreshold: 0.1
-  edgeFeatureMinValidNum: 10
-  surfFeatureMinValidNum: 100
+  # LOAM特征提取阈值参数
+  edgeThreshold: 1.0          # 边缘特征提取的曲率阈值，大于此值被认为是边缘点
+  surfThreshold: 0.1         # 平面特征提取的曲率阈值，小于此值被认为是平面点
+  edgeFeatureMinValidNum: 10  # 边缘特征点最小有效数量，低于此值则跳过该帧边缘特征提取
+  surfFeatureMinValidNum: 100 # 平面特征点最小有效数量，低于此值则跳过该帧平面特征提取
 
   # 体素滤波参数
   odometrySurfLeafSize: 0.4                     # 默认：0.4
@@ -79,18 +84,18 @@ disco_slam:
   mappingProcessInterval: 0.15                  # 秒，调节地图构建频率
   # （优化点云加载的时间间隔，每次把0.15秒的点云加载到优化器）
 
-  # 周围地图
-  surroundingkeyframeAddingDistThreshold: 1.0   # 米，调节关键帧添加阈值
-  surroundingkeyframeAddingAngleThreshold: 0.2  # 弧度，调节关键帧添加阈值
+  # 配准的时候，周围地图
+  surroundingkeyframeAddingDistThreshold: 1.0   # 米，调节关键帧添加阈值(移动超过此阈值，记录一帧)
+  surroundingkeyframeAddingAngleThreshold: 0.2  # 弧度，调节关键帧添加阈值(旋转超过阈值，记录一帧)
   surroundingKeyframeDensity: 2.0               # 米，下采样周围关键帧位姿   
   surroundingKeyframeSearchRadius: 50.0         # 米，在n米范围内进行扫描到地图的优化（当回环检测禁用时）
 
   # 回环检测
-  loopClosureEnableFlag: true
+  loopClosureEnableFlag: true                   # 是否启用回环检测功能，true表示启用，false表示禁用
   loopClosureFrequency: 1.0                     # 赫兹，调节回环约束添加频率
-  surroundingKeyframeSize: 50                   # 子地图大小（当回环检测启用时）
+  surroundingKeyframeSize: 50                   # 子地图大小（当回环检测启用时，越大越困难）
   historyKeyframeSearchRadius: 15.0             # 米，距离当前位姿n米内的关键帧将被考虑用于回环检测
-  historyKeyframeSearchTimeDiff: 30.0           # 秒，n秒以前的关键帧将被考虑用于回环检测
+  historyKeyframeSearchTimeDiff: 30.0           # 秒，n秒以前的关键帧将被考虑用于回环检测（很重要）
   historyKeyframeSearchNum: 25                  # 将融合到子地图中用于回环检测的历史关键帧数量
   historyKeyframeFitnessScore: 0.3              # ICP阈值，越小表示对齐越好
 
@@ -100,31 +105,31 @@ disco_slam:
   globalMapVisualizationLeafSize: 1.0           # 米，全局地图可视化点云密度
 
 
-
-
-# Navsat（将GPS坐标转换为笛卡尔坐标）
+# Navsat配置参数（用于将GPS坐标转换为笛卡尔坐标）
 navsat:
-  frequency: 50
-  wait_for_datum: false
-  delay: 0.0
-  magnetic_declination_radians: 0
-  yaw_offset: 0
-  zero_altitude: true
-  broadcast_utm_transform: false
-  broadcast_utm_transform_as_parent_frame: false
-  publish_filtered_gps: false
+  frequency: 50  # GPS数据处理频率，单位Hz
+  wait_for_datum: false  # 是否等待基准数据，false表示不等待直接处理
+  delay: 0.0  # 数据处理延迟时间，单位秒
+  magnetic_declination_radians: 0  # 磁偏角补偿值，单位弧度
+  yaw_offset: 0  # 航向角偏移补偿值，单位弧度
+  zero_altitude: true  # 是否将高度归零，true表示归零处理
+  broadcast_utm_transform: false  # 是否广播UTM坐标变换
+  broadcast_utm_transform_as_parent_frame: false  # 是否将UTM坐标系作为父坐标系广播
+  publish_filtered_gps: false  # 是否发布过滤后的GPS数据
 
-# 用于Navsat的EKF
+
+# EKF(扩展卡尔曼滤波)GPS融合配置参数
 ekf_gps:
-  publish_tf: false
-  map_frame: map
-  odom_frame: odom
-  base_link_frame: base_link
-  world_frame: odom
+  publish_tf: false  # 是否发布TF变换，false表示不发布
+  map_frame: map     # 地图坐标系名称
+  odom_frame: odom   # 里程计坐标系名称 
+  base_link_frame: base_link  # 机器人基座坐标系名称
+  world_frame: odom  # 世界坐标系名称(此处设为与里程计坐标系相同)
 
-  frequency: 50
-  two_d_mode: false
-  sensor_timeout: 0.01
+  frequency: 50      # EKF更新频率，单位Hz
+  two_d_mode: false  # 是否使用2D模式，false表示使用3D模式
+  sensor_timeout: 0.01  # 传感器数据超时时间，单位秒
+
   # -------------------------------------
   # 外部IMU:
   # -------------------------------------

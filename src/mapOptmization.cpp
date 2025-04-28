@@ -92,7 +92,7 @@ public:
 
     // GTSAM 非线性因子图，用于存储各种约束因子
     NonlinearFactorGraph gtSAMgraph;
-    // GTSAM 初始估计值，存储变量的初始猜测值
+    // GTSAM 初始估计值，存储变量的初始猜测值（可有多种因子的初始值）
     Values initialEstimate;
     // GTSAM 优化后的估计值
     Values optimizedEstimate;
@@ -1364,13 +1364,16 @@ public:
                 lastImuPreTransformation = transBack;
                 lastImuPreTransAvailable = true;
             } else {
-                // 计算增量变换矩阵
+                // 计算增量变换矩阵（其实是IMU坐标系旋转至点云坐标系的旋转矩阵）
+                // 注意：求逆
                 Eigen::Affine3f transIncre = lastImuPreTransformation.inverse() * transBack;
-                // 获取当前待映射的变换矩阵
+                // 获取当前待映射的变换矩阵（其实是点云坐标系转换到全局坐标系的旋转矩阵）
                 Eigen::Affine3f transTobe = trans2Affine3f(transformTobeMapped);
-                // 计算最终的变换矩阵
+                // 计算最终的变换矩阵（IMU转全局坐标 = 点云转全局 * IMU转点云）
                 Eigen::Affine3f transFinal = transTobe * transIncre;
                 // 从最终的变换矩阵中提取平移和旋转信息
+                // 将IMU增量作为位姿估计的初始值，不过要转到全局坐标系
+                // 需要准备上一个循环中的位姿（雷达转全局）、IMU预积分（初始猜测值）、
                 pcl::getTranslationAndEulerAngles(transFinal, transformTobeMapped[3], transformTobeMapped[4], transformTobeMapped[5], 
                                                               transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]);
 
@@ -2068,6 +2071,10 @@ public:
                 combineOptimizationCoeffs();
 
                 // 执行LM优化算法，如果收敛则退出迭代
+                // 相比于NG优化算法，LM优化算法收敛更快，但是可能会出现局部最优解
+                // 两阶段优化建议：先用LM优化算法进行初步优化，然后再用NG优化算法进行全局优化
+                // 3DGS-LM通过GPU并行化PCG，Dog-Leg
+                // 全局最优：遗传算法、模拟退火
                 if (LMOptimization(iterCount) == true)
                     break;              
             }
@@ -2439,7 +2446,7 @@ public:
 
         // 计算优化后的位姿估计
         isamCurrentEstimate = isam->calculateEstimate();
-        // 获取最新的位姿估计结果
+        // 获取最新的位姿估计结果（一连串结果）
         latestEstimate = isamCurrentEstimate.at<Pose3>(isamCurrentEstimate.size()-1);
 
         // 保存3D位姿信息
@@ -2617,7 +2624,7 @@ public:
         // 发布TF变换
         // 创建TF广播器(静态变量，避免重复创建)
         static tf::TransformBroadcaster br;
-        // 创建从里程计坐标系到激光雷达坐标系的变换
+        // 创建从里程计坐标系（全局）到激光雷达坐标系（雷达坐标系）的变换
         tf::Transform t_odom_to_lidar = tf::Transform(tf::createQuaternionFromRPY(transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]),
                                                       tf::Vector3(transformTobeMapped[3], transformTobeMapped[4], transformTobeMapped[5]));
         // 创建带时间戳的TF变换消息
@@ -2637,7 +2644,9 @@ public:
             // 标记已经发布过
             lastIncreOdomPubFlag = true;
             // 使用全局里程计初始化增量里程计
+            // 位置
             laserOdomIncremental = laserOdometryROS;
+            // 旋转
             increOdomAffine = trans2Affine3f(transformTobeMapped);
         } else {
             // 计算相对于上一帧的增量变换

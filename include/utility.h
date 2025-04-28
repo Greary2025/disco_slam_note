@@ -238,9 +238,10 @@ public:
             nh.param<vector<double>>("disco_slam/extrinsicRPY", extRPYV, vector<double>());
             nh.param<vector<double>>("disco_slam/extrinsicTrans", extTransV, vector<double>());
             extRot = Eigen::Map<const Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>(extRotV.data(), 3, 3);
-            extRPY = Eigen::Map<const Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>(extRPYV.data(), 3, 3);
+            // extRPY = Eigen::Map<const Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>(extRPYV.data(), 3, 3);
             extTrans = Eigen::Map<const Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>(extTransV.data(), 3, 1);
-            extQRPY = Eigen::Quaterniond(extRPY);
+            // extQRPY = Eigen::Quaterniond(extRPY);
+            extQRPY = Eigen::Quaterniond(extRot);
         
             // 加载特征提取参数
             nh.param<float>("disco_slam/edgeThreshold", edgeThreshold, 0.1);
