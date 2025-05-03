@@ -541,9 +541,12 @@ public:
             timeLastProcessing = timeLaserInfoCur;
 
             // 更新初始猜测值，为后续优化提供初始位姿
+            // 从imu，上一个里程计等信息中获取初始位姿估计
+            // （其实可以全局位姿优化的时候再做）
             updateInitialGuess();
 
             // 提取周围的关键帧，用于构建局部地图
+            // 上一帧的数据，用于优化当前帧的位姿
             extractSurroundingKeyFrames();
 
             // 对当前扫描的点云进行下采样，减少数据量
@@ -1330,6 +1333,7 @@ public:
     void updateInitialGuess()
     {
         // 在进行任何处理之前保存当前的变换信息
+        // 从自建类型（R,Y,P,x,y,z）转换为Eigen类型
         incrementalOdometryAffineFront = trans2Affine3f(transformTobeMapped);
 
         static Eigen::Affine3f lastImuTransformation;

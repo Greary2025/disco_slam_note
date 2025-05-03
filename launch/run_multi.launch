@@ -1,31 +1,34 @@
 <launch>
-
+    <!-- 定义项目名称和机器人ID参数 -->
     <arg name="project" default="disco_slam"/>
     <arg name="robot0"	default="jackal0"/>
     <arg name="robot1"	default="jackal1"/>
     <arg name="robot2"	default="jackal2"/>
 
-    <!-- Parameters -->
-    <rosparam file="$(find disco_slam)/config/params.yaml" command="load" />
-    <rosparam file="$(find disco_slam)/config/mapfusion.yaml" command="load" />
+    <!-- 加载参数文件 -->
+    <!-- PARK -->
+    <!-- <rosparam file="$(find disco_slam)/config/params.yaml" command="load" /> -->
+    <!-- <rosparam file="$(find disco_slam)/src/DiSCo-SLAM/config/mapfusion.yaml" command="load" /> -->
+    <!-- KITTI-08 -->
+    <rosparam file="$(find disco_slam)/config/params_k.yaml" command="load" />
+    <rosparam file="$(find disco_slam)/src/DiSCo-SLAM/config/mapfusion_k.yaml" command="load"/>
 
-<!--    - LOAM robot 0 -->
-    <include file="$(find disco_slam)/launch/include/module_loam.launch" >
+    <!-- 启动机器人0的LOAM模块 -->
+    <include file="$(find disco_slam)/launch/include/single_loam.launch" >
 	    <arg name="robot" value="$(arg robot0)"/>
     </include>
 
-    <!--- LOAM robot 1 -->
-    <!-- <include file="$(find disco_slam)/launch/include/module_loam.launch" >
+    <!-- 机器人1的LOAM模块(当前被注释) -->
+    <include file="$(find disco_slam)/launch/include/single_loam.launch" >
 	    <arg name="robot" value="$(arg robot1)"/>
-    </include> -->
+    </include>
 
-<!--    - LOAM robot 2 -->
-    <include file="$(find disco_slam)/launch/include/module_loam.launch" >
+    <!-- 启动机器人2的LOAM模块 -->
+    <include file="$(find disco_slam)/launch/include/single_loam.launch" >
         <arg name="robot" value="$(arg robot2)"/>
     </include>
 
-    <!--- Run Rviz-->
-<!--    <node pkg="rviz" type="rviz" name="$(arg project)_rviz" args="-d $(find disco_slam)/launch/include/config/rviz1.rviz" />-->
-
+    <!-- Rviz可视化(当前被注释) -->
+    <!-- <node pkg="rviz" type="rviz" name="$(arg project)_rviz" args="-d $(find disco_slam)/launch/include/config/rviz1.rviz" /> -->
   
 </launch>

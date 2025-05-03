@@ -278,8 +278,10 @@ public:
         cloudQueue.push_back(*laserCloudMsg);
         if (cloudQueue.size() <= 2)
             return false;
-        // 从队列中取出最早的点云
+        // 从队列中取出最早的点云（滑动窗口的处理方法）
+        // 一帧点云的数据非常多，所以只取最早的一帧
         currentCloudMsg = std::move(cloudQueue.front());
+        // 从队列中移除最早的点云
         cloudQueue.pop_front();
         // 根据传感器类型转换点云格式
         if (sensor == SensorType::VELODYNE)

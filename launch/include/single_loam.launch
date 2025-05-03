@@ -1,0 +1,31 @@
+<launch>
+    <!-- 定义参数 -->
+    <arg name="no"/>                                <!-- 节点编号参数 -->
+    <arg name="project" default="disco_slam"/>      <!-- 项目名称，默认为disco_slam -->
+    <arg name="robot"   default="jackal0"/>         <!-- 主机器人ID，默认为jackal0 -->
+    <arg name="id1"     default="jackal1"/>         <!-- 协作机器人1的ID，默认为jackal1 -->
+    <arg name="id2"     default="jackal2"/>         <!-- 协作机器人2的ID，默认为jackal2 -->
+
+    <group>    
+        <!-- IMU预积分节点：处理IMU数据，计算位姿增量 -->
+        <node pkg="$(arg project)" type="$(arg project)_imuPreintegration"   name="$(arg project)_imuPreintegration_$(arg robot)"   output="screen"     respawn="true">
+            <param name="/robot_id" type="string" value = "$(arg robot)"/>   <!-- 设置机器人ID参数 -->
+        </node>
+        
+        <!-- 图像投影节点：将激光点云投影到图像平面，进行去畸变处理 -->
+        <node pkg="$(arg project)" type="$(arg project)_imageProjection"     name="$(arg project)_imageProjection_$(arg robot)"  	output="screen"     respawn="true">
+            <param name="/robot_id" type="string" value = "$(arg robot)"/>   <!-- 设置机器人ID参数 -->
+        </node>
+        
+        <!-- 特征提取节点：从点云中提取边缘和平面特征 -->
+        <node pkg="$(arg project)" type="$(arg project)_featureExtraction"   name="$(arg project)_featureExtraction_$(arg robot)"	output="screen"     respawn="true">
+            <param name="/robot_id" type="string" value = "$(arg robot)"/>   <!-- 设置机器人ID参数 -->
+        </node>
+        
+        <!-- 地图优化节点：进行特征匹配和位姿优化，构建局部地图 -->
+        <node pkg="$(arg project)" type="$(arg project)_mapOptmization"      name="$(arg project)_mapOptmization_$(arg robot)"   	output="screen"     respawn="false">
+            <param name="/robot_id" type="string" value = "$(arg robot)"/>   <!-- 设置机器人ID参数 -->
+        </node>
+    </group>
+
+</launch>

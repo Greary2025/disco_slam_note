@@ -372,7 +372,8 @@ private:
         _cloud_loop_to_search.reset(new pcl::PointCloud<PointType>());     // 闭环搜索点云
 
         // 设置ICP降采样滤波器参数
-        _downsize_filter_icp.setLeafSize(0.4, 0.4, 0.4);  // 设置体素网格大小为0.4m
+        // _downsize_filter_icp.setLeafSize(0.4, 0.4, 0.4);  // 设置体素网格大小为0.4m
+        _downsize_filter_icp.setLeafSize(0.4, 0.2, 0.4);  // 设置体素网格大小为0.4m
 
         // 初始化状态变量
         _initial_loop.first = -1;  // 初始闭环标记为无效

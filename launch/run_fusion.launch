@@ -7,8 +7,12 @@
     <arg name="robot2"	default="jackal2"/>         <!-- 机器人2的ID，默认为jackal2 -->
 
     <!-- 加载参数文件 -->
-    <rosparam file="$(find disco_slam)/config/params.yaml" command="load" />       <!-- 加载通用参数配置 -->
-    <rosparam file="$(find disco_slam)/config/mapfusion.yaml" command="load" />    <!-- 加载地图融合特定参数 -->
+    <!-- PARK -->
+    <!-- <rosparam file="$(find disco_slam)/config/params.yaml" command="load" /> -->
+    <!-- <rosparam file="$(find disco_slam)/src/DiSCo-SLAM/config/mapfusion.yaml" command="load" /> -->
+    <!-- KITTI-08 -->
+    <rosparam file="$(find disco_slam)/config/params_k.yaml" command="load" />
+    <rosparam file="$(find disco_slam)/src/DiSCo-SLAM/config/mapfusion_k.yaml" command="load"/>
 
     <!-- 为机器人0启动地图融合节点 -->
     <node pkg="$(arg project)" type="$(arg project)_mapFusion" name="$(arg project)_mapFusion_$(arg robot0)"   output="screen"     respawn="false">
