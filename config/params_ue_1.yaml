@@ -1,0 +1,174 @@
+disco_slam:
+# 必须有 imu 话题
+  # 话题
+  pointCloudTopic: "points_raw"               # 点云数据
+#  pointCloudTopic: "velodyne_points"
+  imuTopic: "imu_raw"                         # IMU数据
+#  imuTopic: "imu/data"
+  odomTopic: "odometry/imu"                   # IMU预积分里程计，与IMU频率相同
+  gpsTopic: "odometry/gpsz"                   # 来自navsat的GPS里程计话题，参见module_navsat.launch文件
+
+  # 坐标系
+  lidarFrame: "base_link"
+  baselinkFrame: "base_link"
+  odometryFrame: "odom"
+  mapFrame: "map"
+
+  # GPS设置
+  useImuHeadingInitialization: false           # 如果使用GPS数据，设置为"true"
+  useGpsElevation: false                      # 如果GPS高程数据不好，设置为"false"
+  gpsCovThreshold: 2.0                        # 平方米，使用GPS数据的阈值
+  poseCovThreshold: 25.0                      # 平方米，使用GPS数据的阈值
+  
+  # 导出设置
+  savePCD: false                              # https://github.com/TixiaoShan/LIO-SAM/issues/3
+  savePCDDirectory: "/Downloads/LOAM/"        # 在您的主文件夹中，以"/"开始和结束。警告：代码会删除"LOAM"文件夹然后重新创建它。具体实现见"mapOptimization"
+
+  # 传感器设置
+  sensor: velodyne                            # 激光雷达传感器类型，可选'velodyne'或'ouster'
+  N_SCAN: 16                                  # 激光雷达通道数量（例如16, 32, 64, 128）
+  # N_SCAN: 32                                  # 激光雷达通道数量（例如16, 32, 64, 128）
+  # N_SCAN: 64                                  # 激光雷达通道数量（例如16, 32, 64, 128）
+  Horizon_SCAN: 900                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
+  # Horizon_SCAN: 1800                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
+  # Horizon_SCAN: 3600                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
+  downsampleRate: 1                           # 默认：1。如果点太多，可以降采样数据。例如，16 = 64 / 4，16 = 16 / 1
+  lidarMinRange: 1.0                          # 默认：1.0，使用的最小激光雷达范围，单位是米
+  lidarMaxRange: 1000.0                       # 默认：1000.0，使用的最大激光雷达范围
+
+  # IMU设置
+  imuAccNoise: 3.9939570888238808e-03
+  imuGyrNoise: 1.5636343949698187e-03
+  imuAccBiasN: 6.4356659353532566e-05
+  imuGyrBiasN: 3.5640318696367613e-05
+  imuGravity: 9.80511
+  imuRPYWeight: 0.01
+
+  # 外参（激光雷达 -> IMU）
+  # 定义了平移关系
+  extrinsicTrans: [0.0, 0.0, 0.0]
+  # 定义了旋转关系（旋转矩阵，180）
+  # extrinsicRot: [-1, 0, 0,
+  #                 0, 1, 0,
+  #                 0, 0, -1]
+  # 定义了旋转关系（欧拉角，0或180）
+  # extrinsicRPY: [0, -1, 0,
+  #                 1, 0, 0,
+  #                 0, 0, 1]
+  # 雷达坐标系的点 = 旋转矩阵extrinsicRot * IMU坐标系的点（其实是IMU的值）
+  # 目的：把IMU的位置和旋转发布到雷达坐标系下，方便雷达处理
+  extrinsicRot: [1, 0, 0,
+                  0, 1, 0,
+                  0, 0, 1]
+  extrinsicRPY: [1, 0, 0,
+                  0, 1, 0,
+                  0, 0, 1]
+
+  # LOAM特征提取阈值参数
+  edgeThreshold: 1.0          # 边缘特征提取的曲率阈值，大于此值被认为是边缘点
+  surfThreshold: 0.1         # 平面特征提取的曲率阈值，小于此值被认为是平面点
+  edgeFeatureMinValidNum: 10  # 边缘特征点最小有效数量，低于此值则跳过该帧边缘特征提取
+  surfFeatureMinValidNum: 100 # 平面特征点最小有效数量，低于此值则跳过该帧平面特征提取
+
+  # 体素滤波参数
+  odometrySurfLeafSize: 0.4                     # 默认：0.4
+  mappingCornerLeafSize: 0.2                    # 默认：0.2
+  mappingSurfLeafSize: 0.4                      # 默认：0.4
+
+  # 机器人运动约束（适用于2D机器人）
+  z_tollerance: 1000                            # 米
+  rotation_tollerance: 1000                     # 弧度
+
+  # CPU参数
+  numberOfCores: 4                              # 用于地图优化的核心数
+  mappingProcessInterval: 0.15                  # 秒，调节地图构建频率
+  # （优化点云加载的时间间隔，每次把0.15秒的点云加载到优化器）
+
+  # 配准的时候，周围地图
+  surroundingkeyframeAddingDistThreshold: 1.0   # 米，调节关键帧添加阈值(移动超过此阈值，记录一帧)
+  surroundingkeyframeAddingAngleThreshold: 0.2  # 弧度，调节关键帧添加阈值(旋转超过阈值，记录一帧)
+  surroundingKeyframeDensity: 2.0               # 米，下采样周围关键帧位姿   
+  surroundingKeyframeSearchRadius: 50.0         # 米，在n米范围内进行扫描到地图的优化（当回环检测禁用时）
+
+  # 回环检测
+  loopClosureEnableFlag: true                   # 是否启用回环检测功能，true表示启用，false表示禁用
+  loopClosureFrequency: 1.0                     # 赫兹，调节回环约束添加频率
+  surroundingKeyframeSize: 50                   # 子地图大小（当回环检测启用时，越大越困难）
+  historyKeyframeSearchRadius: 15.0             # 米，距离当前位姿n米内的关键帧将被考虑用于回环检测
+  historyKeyframeSearchTimeDiff: 30.0           # 秒，n秒以前的关键帧将被考虑用于回环检测（很重要）
+  historyKeyframeSearchNum: 25                  # 将融合到子地图中用于回环检测的历史关键帧数量
+  historyKeyframeFitnessScore: 0.3              # ICP阈值，越小表示对齐越好
+
+  # 可视化
+  # globalMapVisualizationSearchRadius: 5000.0    # 米，全局地图可视化半径
+  globalMapVisualizationSearchRadius: 100.0    # 米，全局地图可视化半径
+  globalMapVisualizationPoseDensity: 10.0       # 米，全局地图可视化关键帧密度
+  globalMapVisualizationLeafSize: 1.0           # 米，全局地图可视化点云密度
+
+
+# Navsat配置参数（用于将GPS坐标转换为笛卡尔坐标）
+navsat:
+  frequency: 50  # GPS数据处理频率，单位Hz
+  wait_for_datum: false  # 是否等待基准数据，false表示不等待直接处理
+  delay: 0.0  # 数据处理延迟时间，单位秒
+  magnetic_declination_radians: 0  # 磁偏角补偿值，单位弧度
+  yaw_offset: 0  # 航向角偏移补偿值，单位弧度
+  zero_altitude: true  # 是否将高度归零，true表示归零处理
+  broadcast_utm_transform: false  # 是否广播UTM坐标变换
+  broadcast_utm_transform_as_parent_frame: false  # 是否将UTM坐标系作为父坐标系广播
+  publish_filtered_gps: false  # 是否发布过滤后的GPS数据
+
+
+# EKF(扩展卡尔曼滤波)GPS融合配置参数
+ekf_gps:
+  publish_tf: false  # 是否发布TF变换，false表示不发布
+  map_frame: map     # 地图坐标系名称
+  odom_frame: odom   # 里程计坐标系名称 
+  base_link_frame: base_link  # 机器人基座坐标系名称
+  world_frame: odom  # 世界坐标系名称(此处设为与里程计坐标系相同)
+
+  frequency: 50      # EKF更新频率，单位Hz
+  two_d_mode: false  # 是否使用2D模式，false表示使用3D模式
+  sensor_timeout: 0.01  # 传感器数据超时时间，单位秒
+
+  # -------------------------------------
+  # 外部IMU:
+  # -------------------------------------
+  imu0: imu_correct
+  # 确保输入与ROS REP105对齐。"imu_correct"是我手动转换的。EKF也可以使用IMU和base_link之间的tf来转换数据
+  imu0_config: [false, false, false,
+                true,  true,  true,
+                false, false, false,
+                false, false, true,
+                true,  true,  true]
+  imu0_differential: false
+  imu0_queue_size: 50 
+  imu0_remove_gravitational_acceleration: true
+  # -------------------------------------
+  # 里程计（来自Navsat）:
+  # -------------------------------------
+  odom0: odometry/gps
+  odom0_config: [true,  true,  true,
+                 false, false, false,
+                 false, false, false,
+                 false, false, false,
+                 false, false, false]
+  odom0_differential: false
+  odom0_queue_size: 10
+
+  #                            x     y     z     r     p     y   x_dot  y_dot  z_dot  r_dot p_dot y_dot x_ddot y_ddot z_ddot
+  process_noise_covariance: [  1.0,  0,    0,    0,    0,    0,    0,     0,     0,     0,    0,    0,    0,    0,      0,
+                               0,    1.0,  0,    0,    0,    0,    0,     0,     0,     0,    0,    0,    0,    0,      0,
+                               0,    0,    10.0, 0,    0,    0,    0,     0,     0,     0,    0,    0,    0,    0,      0,
+                               0,    0,    0,    0.03, 0,    0,    0,     0,     0,     0,    0,    0,    0,    0,      0,
+                               0,    0,    0,    0,    0.03, 0,    0,     0,     0,     0,    0,    0,    0,    0,      0,
+                               0,    0,    0,    0,    0,    0.1,  0,     0,     0,     0,    0,    0,    0,    0,      0,
+                               0,    0,    0,    0,    0,    0,    0.25,  0,     0,     0,    0,    0,    0,    0,      0,
+                               0,    0,    0,    0,    0,    0,    0,     0.25,  0,     0,    0,    0,    0,    0,      0,
+                               0,    0,    0,    0,    0,    0,    0,     0,     0.04,  0,    0,    0,    0,    0,      0,
+                               0,    0,    0,    0,    0,    0,    0,     0,     0,     0.01, 0,    0,    0,    0,      0,
+                               0,    0,    0,    0,    0,    0,    0,     0,     0,     0,    0.01, 0,    0,    0,      0,
+                               0,    0,    0,    0,    0,    0,    0,     0,     0,     0,    0,    0.5,  0,    0,      0,
+                               0,    0,    0,    0,    0,    0,    0,     0,     0,     0,    0,    0,    0.01, 0,      0,
+                               0,    0,    0,    0,    0,    0,    0,     0,     0,     0,    0,    0,    0,    0.01,   0,
+                               0,    0,    0,    0,    0,    0,    0,     0,     0,     0,    0,    0,    0,    0,      0.015]

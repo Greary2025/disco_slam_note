@@ -297,6 +297,12 @@ public:
      * 3. 转换姿态四元数
      * 4. 检查四元数有效性
      */
+    /*将原始IMU数据：三轴加速度、三轴角速度、三轴角度，与雷达坐标系进行旋转对齐
+    + 对齐之后输出的加速度、角速度、角度的x，y，z就变成雷达坐标系的x，y，z
+    + 这里的特殊之处在于允许IMU的加速度、角速度与角度的输出是两个不同的坐标系。但在算法中，角度的输出除了用来做第一帧的初始化和加权融合，似乎没有其他作用
+    + 这里是将IMU的三个轴与雷达的三个轴在旋转上做对齐，不能加上平移
+    + 对向量做坐标系变换，对多个变换的复合应该是右乘
+    */
     sensor_msgs::Imu imuConverter(const sensor_msgs::Imu& imu_in)
     {
         // 创建输出消息并复制输入消息
@@ -315,10 +321,21 @@ public:
         imu_out.angular_velocity.x = gyr.x();
         imu_out.angular_velocity.y = gyr.y();
         imu_out.angular_velocity.z = gyr.z();
+
+        /*
+        对角度做坐标系变换。
+        + q_from是IMU在全局坐标系下的位姿，q_from: transformation_from_map_to_imu
+        + extQRPY如果与extRot对应的话应该是lidar到imu的变换：transformation_from_lidar_to_imu
+        + q_final是将雷达点云从雷达坐标系转换到map坐标系的变换，也是：transformation_from_map_to_lidar -> pcd_in_map = q_final * pcd_in_lidar
+        + 这里原代码是q_final = q_from * extQRPY；似乎有点问题，还是按照我的推导修改成q_final = q_from * extQRPT.inverse()；由于这里的extQRPY是
+        + 直接从配置文件里面读取的，所以这里加不加逆只需要在配置文件里改就行。认为这里有问题的假设是认为extQRPY和extRot的坐标系关系的定义是一致的，也就是
+        + 将imu坐标系下的向量转换到雷达坐标系下。如果作者对这两者的定义刚好是相反的，那这里就没有问题。
+        */
         
         // 转换姿态四元数：将姿态从传感器坐标系转换到基座坐标系
         Eigen::Quaterniond q_from(imu_in.orientation.w, imu_in.orientation.x, imu_in.orientation.y, imu_in.orientation.z);
-        Eigen::Quaterniond q_final = q_from * extQRPY;  // 应用外参四元数旋转
+        // Eigen::Quaterniond q_final = q_from * extQRPY;  // 应用外参四元数旋转
+        Eigen::Quaterniond q_final = q_from * extQRPY.inverse();
         imu_out.orientation.x = q_final.x();
         imu_out.orientation.y = q_final.y();
         imu_out.orientation.z = q_final.z();
@@ -331,6 +348,7 @@ public:
             ros::shutdown();
         }
 
+        // ROS_INFO("imu_convert success");
         return imu_out;
     }
 };
@@ -344,6 +362,10 @@ public:
  * @param thisFrame 坐标系ID
  * @return 转换后的ROS点云消息
  */
+/*
+ * ROS点云便于ROS通信、便于存储，但大量算法采用PCL库进行处理，需采用PCL库中的格式进行运算，
+ * 这是PCL点云转ROS点云进行发布，ROS点云转PCL点云在接收ROS点云数据的时候顺便做的转换
+*/
 sensor_msgs::PointCloud2 publishCloud(ros::Publisher *thisPub, 
                                     pcl::PointCloud<PointType>::Ptr thisCloud,
                                     ros::Time thisStamp, 

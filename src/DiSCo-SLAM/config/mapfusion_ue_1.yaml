@@ -1,0 +1,24 @@
+mapfusion:  # 地图融合相关配置
+    scancontext:  # ScanContext特征提取和匹配相关参数
+        knn_feature_dim: 16      # KNN特征维度
+        max_range: 30            # 最大扫描范围（米）
+        num_sector: 60           # 扇区数量，用于生成ScanContext描述子
+        num_nearest_matches: 50   # 最近邻匹配数量
+        num_match_candidates: 1   # 匹配候选数量
+        #vertial_axis: #should be x/y/z  # 垂直轴选择（x/y/z）
+
+    interRobot:  # 机器人间通信和匹配相关参数
+        #topic  # 话题配置
+        sc_topic: "context"                    # ScanContext发布话题
+        sc_frame: "base_link"                 # ScanContext参考坐标系
+        local_topic: "disco_slam/mapping/cloud_info"  # 本地点云信息话题
+
+        #thres  # 阈值配置
+        loop_threshold: 0.2         # 回环检测阈值
+        pcm_threshold: 20           # 点云匹配阈值
+        icp_threshold: 3            # ICP配准阈值
+        loop_frame_threshold: 10    # 回环帧阈值（帧数）
+        pcm_start_threshold: 5      # PCM开始阈值（5为最佳结果，2用于恶劣环境）
+
+        robot_initial: jackal0      # 初始机器人标识
+        use_position_search: false  # 是否使用位置搜索（可能引入更多全局回环，但会增加候选检查时间）

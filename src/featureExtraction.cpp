@@ -95,8 +95,8 @@ public:
         cloudHeader = msgIn->header;  // 保存头信息
         pcl::fromROSMsg(msgIn->cloud_deskewed, *extractedCloud);  // 转换ROS消息为PCL点云
 
-        calculateSmoothness();  // 计算平滑度(曲率)
-        markOccludedPoints();   // 标记遮挡点
+        calculateSmoothness();  // 计算平滑度(曲率)（只有水平方向有曲率）
+        markOccludedPoints();   // 标记遮挡点和平行点
         extractFeatures();       // 提取特征
         publishFeatureCloud();   // 发布特征点云
     }
@@ -131,9 +131,26 @@ public:
     }
 
     /*
-     * 标记遮挡点和平行光束点
-     * 遮挡点: 深度突变较大的点
-     * 平行光束点: 两侧距离变化较大的点
+     * 标记遮挡点和平行光束点(需去除，这两种特征点不固定，不可靠)
+     * 遮挡点: 深度突变较大的点(如深度变化超过0.3米)
+     * 平行光束点（几乎平行于激光光束，前一帧距离近，后一帧无穷远）: 两侧距离变化较大的点(如距离变化超过0.05米)
+     * **********            **********
+     * *********              **********
+     * ********                **********
+     * *******^(平行光束点)    ^^^**********
+     * ****** ^          ^^^   (特征点)********
+     * ***** ^       ^^^         *********
+     * ****  ^   ^^^             *********
+     * ***  &(激光雷达)            ***********
+     * 
+     * *******************^(遮挡点)
+     * ******            ^
+     * ******           ^
+     * ******          ^***************
+     * *****          ^^   (特征点)*******
+     *               ^^          ******
+     *              ^^
+     *             &(激光雷达)
      */
     void markOccludedPoints()
     {
@@ -197,6 +214,9 @@ public:
         // 降采样可以减少点云数据量，提高处理效率，处理后的点云数据将存储在这个指针所指向的点云对象中
         pcl::PointCloud<PointType>::Ptr surfaceCloudScanDS(new pcl::PointCloud<PointType>());
 
+        // 解释：surfaceCloudScan是除角点外的所有点云，surfaceCloudScanDS是降采样后的点云
+        // 问题是：特征提取加速ICP的计算，特征提取的点云数量和计算精度之间的矛盾。
+        // 例如：角点阈值太小，个数过多，限制角点个数，或者平面点个数过多（一般是这样的），怎么进行取舍，只能降采样
         // 遍历每条激光线束
         for (int i = 0; i < N_SCAN; i++)
         {
@@ -224,7 +244,7 @@ public:
                     if (cloudNeighborPicked[ind] == 0 && cloudCurvature[ind] > edgeThreshold)
                     {
                         largestPickedNum++;
-                        if (largestPickedNum <= 20){  // 每段最多选取20个角点
+                        if (largestPickedNum <= 20){  // 每段最多选取20个角点（降低ICP运算复杂度，提高速度）
                             cloudLabel[ind] = 1;  // 标记为角点
                             cornerCloud->push_back(extractedCloud->points[ind]);
                         } else {
@@ -232,7 +252,7 @@ public:
                         }
 
                         cloudNeighborPicked[ind] = 1;
-                        // 标记邻近点，避免选取过于密集的特征
+                        // 标记邻近点，避免选取过于密集的特征（防止特征点过密）
                         for (int l = 1; l <= 5; l++)
                         {
                             int columnDiff = std::abs(int(cloudInfo.pointColInd[ind + l] - cloudInfo.pointColInd[ind + l - 1]));
@@ -251,15 +271,25 @@ public:
                 }
 
                 // 提取平面点特征(曲率较小的点)
+                // int largestPickedNumS = 0;
                 for (int k = sp; k <= ep; k++)
                 {
                     int ind = cloudSmoothness[k].ind;
                     if (cloudNeighborPicked[ind] == 0 && cloudCurvature[ind] < surfThreshold)
                     {
-                        cloudLabel[ind] = -1;  // 标记为平面点
+                        // largestPickedNumS++;
+                        // if (largestPickedNumS <= 20){  // 每段最多选取20个平面点（降低ICP运算复杂度，提高速度）
+                            cloudLabel[ind] = -1;  // 标记为平面点
+                            // surfaceCloud->push_back(extractedCloud->points[ind]);
+                            surfaceCloudScan->push_back(extractedCloud->points[ind]);
+                        // } else {
+                        //     break;
+                        // }
+
+                        // cloudLabel[ind] = -1;  // 标记为平面点
                         cloudNeighborPicked[ind] = 1;
 
-                        // 标记邻近点
+                        // 标记邻近点（防止特征点过密）
                         for (int l = 1; l <= 5; l++) {
                             int columnDiff = std::abs(int(cloudInfo.pointColInd[ind + l] - cloudInfo.pointColInd[ind + l - 1]));
                             if (columnDiff > 10)
@@ -274,14 +304,16 @@ public:
                         }
                     }
                 }
-
-                // 收集当前段的平面点
-                for (int k = sp; k <= ep; k++)
-                {
-                    if (cloudLabel[k] <= 0){  // 非角点(平面点或未分类点)
-                        surfaceCloudScan->push_back(extractedCloud->points[k]);
-                    }
-                }
+                
+                // 收集当前段的平面点（问题：extractedCloud并不是平面点，是除角点外的全部点云）
+                // 平面点云过多的问题：如果限制个数，导致快速达到平面点云上限，从而消失大量点云
+                // 解决方法：平面点云提取没有上限，然后再降采样，这样可以保证平面点云的数量不会过多
+                // for (int k = sp; k <= ep; k++)
+                // {
+                //     if (cloudLabel[k] <= 0){  // 非角点(平面点或未分类点)
+                //         surfaceCloudScan->push_back(extractedCloud->points[k]);
+                //     }
+                // }
             }
 
             // 对平面点进行降采样

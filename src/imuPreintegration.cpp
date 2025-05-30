@@ -339,6 +339,8 @@ public:
                     break;
             }
             // 初始位姿
+            // 初始化因子图的prior状态
+            // 将雷达里程计位姿平移到IMU坐标系，只是做了平移
             prevPose_ = lidarPose.compose(lidar2Imu);
             gtsam::PriorFactor<gtsam::Pose3> priorPose(X(0), prevPose_, priorPoseNoise);
             graphFactors.add(priorPose);
@@ -455,6 +457,7 @@ public:
         // 2. 优化后，重新传播IMU里程计预积分
         prevStateOdom = prevState_;
         prevBiasOdom  = prevBias_;
+        // 同样先做IMU数据队列和雷达里程计的时间同步
         // 首先弹出早于当前校正数据的IMU消息
         double lastImuQT = -1;
         while (!imuQueImu.empty() && ROS_TIME(&imuQueImu.front()) < currentCorrectionTime - delta_t)
@@ -545,7 +548,8 @@ public:
         odometry.header.stamp = thisImu.header.stamp; // 使用IMU时间戳
         odometry.header.frame_id = robot_id + "/" + odometryFrame; // 设置坐标系
         odometry.child_frame_id = robot_id + "/" + lidarFrame + "/odom_imu"; // 设置子坐标系
-
+        
+        // 将IMU里程计完全对齐到雷达（剩下一个平移关系）
         // 将IMU位姿转换为激光雷达位姿
         gtsam::Pose3 imuPose = gtsam::Pose3(currentState.quaternion(), currentState.position());
         gtsam::Pose3 lidarPose = imuPose.compose(imu2Lidar); // 应用IMU到激光雷达的变换

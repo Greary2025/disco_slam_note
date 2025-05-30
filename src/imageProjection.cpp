@@ -1,3 +1,4 @@
+// 数据预处理模块
 #include "utility.h"
 #include "disco_slam/cloud_info.h"
 // Velodyne激光雷达点结构定义，包含XYZI(坐标和强度)、ring(线号)和time(时间戳)
@@ -247,7 +248,7 @@ public:
     void cloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudMsg)
     {
         // 缓存点云数据并进行格式转换
-        // 如果点云队列不足2帧或格式转换失败则返回
+        // 如果点云队列不足2帧（最后一帧）或格式转换失败则返回
         if (!cachePointCloud(laserCloudMsg))
             return;
 
@@ -258,6 +259,7 @@ public:
 
         // 将点云投影到距离图像上
         // 包括点云去畸变和球面投影
+        // 去畸变，将点云从返回值的点 和IMU旋转向量相乘 转换到发出时的点
         projectPointCloud();
 
         // 从距离图像中提取有效点云
@@ -598,6 +600,7 @@ public:
      */
     PointType deskewPoint(PointType *point, double relTime)
     {
+        // ROS_INFO("IMU_deskewPoint init");
         // 检查去畸变是否可用
         if (deskewFlag == -1 || cloudInfo.imuAvailable == false)
             return *point;
@@ -632,6 +635,8 @@ public:
         newPoint.z = transBt(2,0) * point->x + transBt(2,1) * point->y + transBt(2,2) * point->z + transBt(2,3);
         newPoint.intensity = point->intensity;
 
+        // ROS_INFO("Processing scan %d, position: x=%.2f, y=%.2f", scan_id, x, y);
+        ROS_INFO("IMU_deskewPoint success");
         return newPoint;
     }
 
@@ -657,6 +662,7 @@ public:
 
             // 获取点所在的线束ID
             int rowIdn = laserCloudIn->points[i].ring;
+            
             if (rowIdn < 0 || rowIdn >= N_SCAN)
                 continue;
 
