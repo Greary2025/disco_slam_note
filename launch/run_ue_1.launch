@@ -42,12 +42,12 @@
     <rosparam file="$(find disco_slam)/config/params_ue_1.yaml" command="load" />
     <rosparam file="$(find disco_slam)/src/DiSCo-SLAM/config/mapfusion_ue_1.yaml" command="load"/>
     <!-- 启动机器人0的LOAM模块 -->
-    <!-- <include file="$(find disco_slam)/launch/include/module_loam.launch" >
+    <include file="$(find disco_slam)/launch/include/module_loam.launch" >
         <arg name="robot" value="$(arg robot0)"/>
         <arg name="id1" value="$(arg robot1)"/>
         <arg name="id2" value="$(arg robot2)"/>
         <arg name="no" value="$(arg no)"/>
-    </include> -->
+    </include>
 
     <!-- 启动机器人1的LOAM模块 -->
     <include file="$(find disco_slam)/launch/include/module_loam.launch" >
@@ -58,12 +58,12 @@
     </include>
 
     <!-- 启动机器人2的LOAM模块 -->
-    <!-- <include file="$(find disco_slam)/launch/include/module_loam.launch" >
+    <include file="$(find disco_slam)/launch/include/module_loam.launch" >
         <arg name="robot" value="$(arg robot2)"/>
         <arg name="id1" value="$(arg robot0)"/>
         <arg name="id2" value="$(arg robot1)"/>
         <arg name="no" value="$(arg no)"/>
-      </include> -->
+      </include>
 
     <!-- 机器人状态TF转换 (已注释) -->
     <!-- <include file="$(find disco_slam)/launch/include/module_robot_state_publisher.launch" /> -->
@@ -77,9 +77,12 @@
     <!-- 运行通信模拟器 (已注释) -->
     <!-- <node pkg="$(arg project)" name= "$(arg project)_listener" type="listener.py" output="screen"/> -->
 
+    <!-- /mnt/c/Users/Greary/Documents/rosbag/lidar_1_ring_06_03.bag -->
+    <!-- /mnt/d/jkg_rosbag/E2-disco/kitti08_2.bag -->
     <node pkg="rosbag" type="play" name="bag_player"
-        args="/mnt/c/Users/Greary/Documents/rosbag/D1-UE5_rosbag/lidar_1_pose_man_duan.bag -l --clock -r 1">
-    <!-- 话题重映射 -->
+        args=" /mnt/c/Users/Greary/Documents/rosbag/lidar_1_ring_06_03.bag
+        -l --clock -r 1">
+        <!-- 话题重映射 -->
         <!-- <remap from="原始话题名称" to="新话题名称" /> -->
         <remap from="$(arg raw0_cloud)" to="$(arg input0_cloud)" />
         <remap from="$(arg raw1_cloud)" to="$(arg input1_cloud)" />
@@ -91,6 +94,7 @@
         <remap from="$(arg raw1_imu)" to="$(arg correct1_imu)" />
         <remap from="$(arg raw2_imu)" to="$(arg correct2_imu)" />
     </node>
+    
 
 </launch>
 

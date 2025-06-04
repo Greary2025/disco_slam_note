@@ -26,13 +26,15 @@ disco_slam:
 
   # 传感器设置
   sensor: velodyne                            # 激光雷达传感器类型，可选'velodyne'或'ouster'
-  N_SCAN: 16                                  # 激光雷达通道数量（例如16, 32, 64, 128）
+  # N_SCAN: 16                                  # 激光雷达通道数量（例如16, 32, 64, 128）
   # N_SCAN: 32                                  # 激光雷达通道数量（例如16, 32, 64, 128）
-  # N_SCAN: 64                                  # 激光雷达通道数量（例如16, 32, 64, 128）
-  Horizon_SCAN: 900                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
-  # Horizon_SCAN: 1800                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
+  N_SCAN: 64                                  # 激光雷达通道数量（例如16, 32, 64, 128）
+  # Horizon_SCAN: 900                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
+  Horizon_SCAN: 1800                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
   # Horizon_SCAN: 3600                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
-  downsampleRate: 1                           # 默认：1。如果点太多，可以降采样数据。例如，16 = 64 / 4，16 = 16 / 1
+  timeField: "time"                           # 激光雷达时间戳字段名称
+  # downsampleRate: 1                           # 默认：1。如果点太多，可以降采样数据。例如，16 = 64 / 4，16 = 16 / 1
+  downsampleRate: 4                           # 默认：1。如果点太多，可以降采样数据。例如，16 = 64 / 4，16 = 16 / 1
   lidarMinRange: 1.0                          # 默认：1.0，使用的最小激光雷达范围，单位是米
   lidarMaxRange: 1000.0                       # 默认：1000.0，使用的最大激光雷达范围
 
@@ -45,8 +47,18 @@ disco_slam:
   imuRPYWeight: 0.01
 
   # 外参（激光雷达 -> IMU）
+  extrinsicTrans: [-8.086759e-01, 3.195559e-01, -7.997231e-01]
+
+  extrinsicRot: [9.999976e-01, 7.553071e-04, -2.035826e-03,
+                  -7.854027e-04, 9.998898e-01, -1.482298e-02,
+                  2.024406e-03, 1.482454e-02, 9.998881e-01]
+
+  extrinsicRPY: [9.999976e-01, 7.553071e-04, -2.035826e-03,
+                  -7.854027e-04, 9.998898e-01, -1.482298e-02,
+                   2.024406e-03, 1.482454e-02, 9.998881e-01]
+
   # 定义了平移关系
-  extrinsicTrans: [0.0, 0.0, 0.0]
+  # extrinsicTrans: [0.0, 0.0, 0.0]
   # 定义了旋转关系（旋转矩阵，180）
   # extrinsicRot: [-1, 0, 0,
   #                 0, 1, 0,
@@ -57,12 +69,12 @@ disco_slam:
   #                 0, 0, 1]
   # 雷达坐标系的点 = 旋转矩阵extrinsicRot * IMU坐标系的点（其实是IMU的值）
   # 目的：把IMU的位置和旋转发布到雷达坐标系下，方便雷达处理
-  extrinsicRot: [1, 0, 0,
-                  0, 1, 0,
-                  0, 0, 1]
-  extrinsicRPY: [1, 0, 0,
-                  0, 1, 0,
-                  0, 0, 1]
+  # extrinsicRot: [1, 0, 0,
+  #                 0, 1, 0,
+  #                 0, 0, 1]
+  # extrinsicRPY: [1, 0, 0,
+  #                 0, 1, 0,
+  #                 0, 0, 1]
 
   # LOAM特征提取阈值参数
   edgeThreshold: 1.0          # 边缘特征提取的曲率阈值，大于此值被认为是边缘点
@@ -101,7 +113,7 @@ disco_slam:
 
   # 可视化
   # globalMapVisualizationSearchRadius: 5000.0    # 米，全局地图可视化半径
-  globalMapVisualizationSearchRadius: 100.0    # 米，全局地图可视化半径
+  globalMapVisualizationSearchRadius: 1000.0    # 米，全局地图可视化半径
   globalMapVisualizationPoseDensity: 10.0       # 米，全局地图可视化关键帧密度
   globalMapVisualizationLeafSize: 1.0           # 米，全局地图可视化点云密度
 

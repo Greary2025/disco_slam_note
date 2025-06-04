@@ -1643,10 +1643,11 @@ public:
             std::vector<float> pointSearchSqDis;  // 搜索结果点的距离平方
 
             // 获取当前处理的角点
+            // （feature提取角点-->feature降采样-->optmization降采样-->laserCloudCornerLastDS）
             pointOri = laserCloudCornerLastDS->points[i];
             // 将角点转换到地图坐标系
             pointAssociateToMap(&pointOri, &pointSel);
-            // 在地图中搜索距离该点最近的5个角点
+            // 在地图中搜索距离该点最近的5个点（没有特征要求）
             kdtreeCornerFromMap->nearestKSearch(pointSel, 5, pointSearchInd, pointSearchSqDis);
 
             // 创建用于特征提取的矩阵
@@ -1655,6 +1656,8 @@ public:
             cv::Mat matV1(3, 3, CV_32F, cv::Scalar::all(0));  // 特征向量
                     
             // 如果最远点的距离小于1.0，则进行特征提取
+            // 进行平面，直线的判定，选取附近5个点（历史点）做直线，求协方差矩阵的特征值，就是直线的方向
+            // 
             if (pointSearchSqDis[4] < 1.0) {
                 // 计算5个最近邻点的质心
                 float cx = 0, cy = 0, cz = 0;
@@ -1673,10 +1676,10 @@ public:
                     float ay = laserCloudCornerFromMapDS->points[pointSearchInd[j]].y - cy;
                     float az = laserCloudCornerFromMapDS->points[pointSearchInd[j]].z - cz;
 
-                    // 计算协方差矩阵的上三角元素
+                    // 计算协方差矩阵的上三角元素（对称矩阵）
                     a11 += ax * ax; a12 += ax * ay; a13 += ax * az;
-                    a22 += ay * ay; a23 += ay * az;
-                    a33 += az * az;
+                                    a22 += ay * ay; a23 += ay * az;
+                                                    a33 += az * az;
                 }
                 // 计算协方差矩阵元素的平均值
                 a11 /= 5; a12 /= 5; a13 /= 5; a22 /= 5; a23 /= 5; a33 /= 5;
@@ -1687,15 +1690,20 @@ public:
                 matA1.at<float>(2, 0) = a13; matA1.at<float>(2, 1) = a23; matA1.at<float>(2, 2) = a33;
 
                 // 对协方差矩阵进行特征值分解
+                // 对协方差矩阵做特征值分解，最大特征值对应的特征向量是这5个点的主方向
                 cv::eigen(matA1, matD1, matV1);
 
                 // 如果最大特征值显著大于第二大特征值，说明构成了一个良好的线特征
+                // 以下部分是在计算当前点pointSel到检索出的直线的距离和方向，如果距离够近，则认为匹配成功，否则认为匹配失败
+                // x0,y0,z0是直线外一点
                 if (matD1.at<float>(0, 0) > 3 * matD1.at<float>(0, 1)) {
                     // 获取当前点的坐标
                     float x0 = pointSel.x;
                     float y0 = pointSel.y;
                     float z0 = pointSel.z;
                     // 根据特征向量构建线特征的两个端点
+                    // matV1的第一行就是5个点形成的直线的方向，cx,cy,cz是5个点的中心点
+                    // 因此，x1,y1,z1和x2,y2,z2是经过中心点的直线上的另外两个点（不是点云的点），两点之间的距离是0.2米
                     float x1 = cx + 0.1 * matV1.at<float>(0, 0);
                     float y1 = cy + 0.1 * matV1.at<float>(0, 1);
                     float z1 = cz + 0.1 * matV1.at<float>(0, 2);
@@ -1705,14 +1713,25 @@ public:
 
                     // 计算点到直线的距离相关参数
                     // a012是三个点构成的平行四边形的面积的两倍
+                    // 这边是在求[(x0-x1),(y0-y1),(z0-z1)]与[(x0-x2),(y0-y2),(z0-z2)]叉乘得到的向量的模长
+                    // 这个模长是由0.2*V1[0]和点[x0,y0,z0]构成的平行四边形的面积
+                    // 垂直于0,1,2三点构成的平面的向量
+                    // [XXX,YYY,ZZZ] = [(y0-y1)(z0-z2)-(y0-y2)(z0-z1),
+                                        // -(x0-x1)(z0-z2)+(x0-x2)(z0-z1),
+                                        // (x0-x1)(y0-y2)-(x0-x2)(y0-y1)]
                     float a012 = sqrt(((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) * ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) 
                                     + ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1)) * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1)) 
                                     + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)) * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)));
 
                     // 计算线特征两个端点之间的距离
+                    // l12表示的是0.2*(||V1[0]||)
+                    // 点x1,y1,z1到点x2,y2,z2的距离
                     float l12 = sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2) + (z1 - z2)*(z1 - z2));
 
                     // 计算点到直线的投影系数
+                    // 求叉乘结果[la',lb',lc']=[(x1-x2),(y1-y2),(z1-z2)]x[XXX,YYY,ZZZ]
+                    // [la,lb,lc]=[la',lb',lc']/a012/l12
+                    // LLL=[la,lb,lc]是0.2*V1[0]这条高上的单位法向量。||LLL||=1；
                     float la = ((y1 - y2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) 
                               + (z1 - z2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
 
@@ -1723,6 +1742,7 @@ public:
                                + (y1 - y2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
 
                     // 计算点到直线的距离
+                    // ld2就是点pointSel(x0,y0,z0)到直线的距离
                     float ld2 = a012 / l12;
 
                     // 计算权重系数
@@ -1769,13 +1789,17 @@ public:
             std::vector<int> pointSearchInd;      // 搜索结果点的索引
             std::vector<float> pointSearchSqDis;  // 搜索结果点的距离平方
 
-            // 获取当前处理的平面点
+            // 获取当前处理的平面点（feature提取平面点-->feature降采样-->optmization降采样-->laserCloudSurfLastDS）
+            // 目标点少之又少
             pointOri = laserCloudSurfLastDS->points[i];
             // 将平面点转换到地图坐标系
             pointAssociateToMap(&pointOri, &pointSel); 
-            // 在地图中搜索距离该点最近的5个平面点
+            // 在地图中搜索距离该点最近的5个点（没有特征要求）
             kdtreeSurfFromMap->nearestKSearch(pointSel, 5, pointSearchInd, pointSearchSqDis);
 
+            // 下面的过程要求解Ax+By+Cz+1=0的平面方程
+            // 由于有5个点，因此是求解超定方程
+            // 假设5个点都在平面上，则matA0是系数矩阵，matB0是等号右边的值（都是-1）；matX0是求出来的A，B，C
             // 创建用于平面拟合的矩阵
             Eigen::Matrix<float, 5, 3> matA0;  // 系数矩阵
             Eigen::Matrix<float, 5, 1> matB0;  // 常数项
@@ -1795,6 +1819,7 @@ public:
                     matA0(j, 2) = laserCloudSurfFromMapDS->points[pointSearchInd[j]].z;
                 }
 
+                // 这里是求解matA0XmatX0 = matB0方程
                 // 使用QR分解求解平面方程 Ax=b
                 matX0 = matA0.colPivHouseholderQr().solve(matB0);
 
@@ -1804,6 +1829,7 @@ public:
                 float pc = matX0(2, 0);  // c
                 float pd = 1;            // d
 
+                // （pa,pb,pc)是平面的法向量，这里是对法向量规一化，变成单位法向量
                 // 对平面方程进行归一化
                 float ps = sqrt(pa * pa + pb * pb + pc * pc);
                 pa /= ps; pb /= ps; pc /= ps; pd /= ps;
@@ -1906,6 +1932,7 @@ public:
         // pitch = roll         ---     pitch = yaw
         // yaw = pitch          ---     yaw = roll
 
+        // 计算三轴欧拉角的sin、cos，后面使用旋转矩阵对欧拉角求导中会使用到
         // lidar -> camera
         // 计算旋转矩阵的三角函数值
         float srx = sin(transformTobeMapped[1]);  // sin(pitch)
@@ -1915,19 +1942,25 @@ public:
         float srz = sin(transformTobeMapped[0]);  // sin(roll)
         float crz = cos(transformTobeMapped[0]);  // cos(roll)
 
+        // laserCloudOri是在cornerOptimization、surfOptimization两个函数中找到的有匹配关系的
+        // 角点和平面点，如果找到的可供优化的点数太少，则跳过此次优化
         // 获取特征点的数量,如果少于50个点则返回false
         int laserCloudSelNum = laserCloudOri->size();
         if (laserCloudSelNum < 50) {
             return false;
         }
 
+        // matA是Jacobians矩阵J
         // 创建优化问题相关的矩阵
         cv::Mat matA(laserCloudSelNum, 6, CV_32F, cv::Scalar::all(0));    // 雅可比矩阵
         cv::Mat matAt(6, laserCloudSelNum, CV_32F, cv::Scalar::all(0));   // 雅可比矩阵的转置
         cv::Mat matAtA(6, 6, CV_32F, cv::Scalar::all(0));                 // J^T * J
+        // matB是目标函数，也就是距离
         cv::Mat matB(laserCloudSelNum, 1, CV_32F, cv::Scalar::all(0));    // 误差向量
         cv::Mat matAtB(6, 1, CV_32F, cv::Scalar::all(0));                 // J^T * err
+        // matX是高斯-牛顿法计算出的更新向量
         cv::Mat matX(6, 1, CV_32F, cv::Scalar::all(0));                   // 优化增量
+        // cv::Mat matP(6, 6, CV_32F, cv::Scalar::all(0));
 
         PointType pointOri, coeff;  // 用于存储原始点和对应的系数
 
@@ -1946,26 +1979,50 @@ public:
 
             // 计算雅可比矩阵中的元素
             // arx, ary, arz分别对应roll, pitch, yaw的偏导数
+            // in camera
+            // 求雅克比矩阵的值，也就是求目标函数（点到线、平面的距离）相对于tx,ty,tz,rx,ry,rz的导数
+            // 具体的公式推导看仓库README中本项目博客，高斯牛顿法方程：J^{T}J\Delta{x} = -Jf(x)，\Delta{x}就是要求解的更新向量matX
+            // arx是目标函数相对于roll的导数
             float arx = (crx*sry*srz*pointOri.x + crx*crz*sry*pointOri.y - srx*sry*pointOri.z) * coeff.x
                       + (-srx*srz*pointOri.x - crz*srx*pointOri.y - crx*pointOri.z) * coeff.y
                       + (crx*cry*srz*pointOri.x + crx*cry*crz*pointOri.y - cry*srx*pointOri.z) * coeff.z;
-
+            // ary是目标函数相对于pitch的导数
             float ary = ((cry*srx*srz - crz*sry)*pointOri.x 
                       + (sry*srz + cry*crz*srx)*pointOri.y + crx*cry*pointOri.z) * coeff.x
                       + ((-cry*crz - srx*sry*srz)*pointOri.x 
                       + (cry*srz - crz*srx*sry)*pointOri.y - crx*sry*pointOri.z) * coeff.z;
-
+            // arz是目标函数相对于yaw的导数
             float arz = ((crz*srx*sry - cry*srz)*pointOri.x + (-cry*crz-srx*sry*srz)*pointOri.y)*coeff.x
                       + (crx*crz*pointOri.x - crx*srz*pointOri.y) * coeff.y
                       + ((sry*srz + cry*crz*srx)*pointOri.x + (crz*sry-cry*srx*srz)*pointOri.y)*coeff.z;
+
+            /*
+            在求点到直线的距离时，coeff表示的是如下内容
+            [la,lb,lc]表示的是点到直线的垂直连线方向，s是长度
+            coeff.x = s * la;
+            coeff.y = s * lb;
+            coeff.z = s * lc;
+            coeff.intensity = s * ld2;
+
+            在求点到平面的距离时，coeff表示的是
+            [pa,pb,pc]表示过外点的平面的法向量，s是线的长度
+            coeff.x = s * pa;
+            coeff.y = s * pb;
+            coeff.z = s * pc;
+            coeff.intensity = s * pd2;
+            */
 
             // 填充雅可比矩阵和误差向量
             matA.at<float>(i, 0) = arz;
             matA.at<float>(i, 1) = arx;
             matA.at<float>(i, 2) = ary;
+            // 目标函数相对于tx的导数等于法向量的x
             matA.at<float>(i, 3) = coeff.z;
+            // 目标函数相对于ty的导数等于法向量的y
             matA.at<float>(i, 4) = coeff.x;
+            // 目标函数相对于tz的导数等于法向量的z
             matA.at<float>(i, 5) = coeff.y;
+            // matB存储的是目标函数（距离）的负值，因为：J^{T}J\Delta{x} = -Jf(x)
             matB.at<float>(i, 0) = -coeff.intensity;
         }
 
@@ -1974,9 +2031,19 @@ public:
         matAtA = matAt * matA;
         matAtB = matAt * matB;
         // 使用QR分解求解线性方程组
+        // 求解高斯-牛顿法中的增量方程：J^{T}J\Delta{x} = -Jf(x)，这里解出来的matX就是更新向量
+        // matA是雅克比矩阵J
+        // matAtB是上面等式中等号的右边，负号在matB赋值的时候已经加入
         cv::solve(matAtA, matAtB, matX, cv::DECOMP_QR);
 
         // 在第一次迭代时检查是否存在退化
+        // 如果是第一次迭代，判断求解出来的近似Hessian矩阵，也就是J^{T}J:=matAtA是否退化
+        /**
+            * 这部分的计算说实话没有找到很好的理论出处，这里只能大概说一下这段代码想要做的事情
+            * 这里用matAtA也就是高斯-牛顿中的近似海瑟（Hessian）矩阵H。求解增量方程：J^{T}J\Delta{x} = -Jf(x)
+            * 要求H:=J^{T}J可逆，但H不一定可逆。下面的代码通过H的特征值判断H是否退化，并将退化的方向清零matV2。而后又根据
+            * matV.inv()*matV2作为更新向量的权重系数，matV是H的特征向量矩阵。
+        */
         if (iterCount == 0) {
             // 创建用于特征值分解的矩阵
             cv::Mat matE(1, 6, CV_32F, cv::Scalar::all(0));  // 特征值
@@ -1984,6 +2051,7 @@ public:
             cv::Mat matV2(6, 6, CV_32F, cv::Scalar::all(0)); // 处理后的特征向量
 
             // 对 J^T * J 进行特征值分解
+            // 对近似Hessian矩阵做特征值分解，matE是特征值，matV是特征向量。opencv的matV中每一行是一个特征向量
             cv::eigen(matAtA, matE, matV);
             matV.copyTo(matV2);
 
@@ -2005,6 +2073,7 @@ public:
         }
 
         // 如果存在退化,使用投影矩阵处理优化增量
+        // 当第一次迭代判断到海瑟矩阵退化，后面会使用计算出来的权重matP对增量matX做加权组合
         if (isDegenerate)
         {
             cv::Mat matX2(6, 1, CV_32F, cv::Scalar::all(0));
@@ -2021,16 +2090,19 @@ public:
         transformTobeMapped[5] += matX.at<float>(5, 0);
 
         // 计算旋转和平移的增量大小
+        // 计算roll、pitch、yaw的迭代步长
         float deltaR = sqrt(
                             pow(pcl::rad2deg(matX.at<float>(0, 0)), 2) +
                             pow(pcl::rad2deg(matX.at<float>(1, 0)), 2) +
                             pow(pcl::rad2deg(matX.at<float>(2, 0)), 2));
+        // 计算平移的迭代步长
         float deltaT = sqrt(
                             pow(matX.at<float>(3, 0) * 100, 2) +
                             pow(matX.at<float>(4, 0) * 100, 2) +
                             pow(matX.at<float>(5, 0) * 100, 2));
 
         // 检查是否收敛
+        // 如果迭代的步长达到设定阈值，则认为已经收敛
         if (deltaR < 0.05 && deltaT < 0.05) {
             return true; // 收敛
         }
