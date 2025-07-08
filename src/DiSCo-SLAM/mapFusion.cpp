@@ -52,6 +52,8 @@
 // 参数p: 目标位姿
 // 返回值: 表示从x到p的变换位姿
 inline gtsam::Pose3_ transformTo(const gtsam::Pose3_& x, const gtsam::Pose3_& p) {
+    // 最终将调用结果（即 x.transform_pose_to(p) 的返回值）
+    // 则 x.transform_pose_to(p) 等价于 x.inverse() * p（位姿的逆乘以目标位姿）。
     return gtsam::Pose3_(x, &gtsam::Pose3::transform_pose_to, p);
 }
 /**
@@ -209,6 +211,7 @@ public:
         // 初始化成员变量和数据结构
         initialization();
 
+        // 相互之间的订阅
         // 设置通信信号订阅器
         _sub_communication_signal = nh.subscribe<std_msgs::Bool>(_robot_id + "/disco_slam/signal",
                  100, &MapFusion::communicationSignalHandler, this, ros::TransportHints().tcpNoDelay());

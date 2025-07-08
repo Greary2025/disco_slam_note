@@ -1,7 +1,7 @@
 mapfusion:  # 地图融合相关配置
     scancontext:  # ScanContext特征提取和匹配相关参数
-        # knn_feature_dim: 16      # KNN特征维度
-        knn_feature_dim: 64      # KNN特征维度
+        knn_feature_dim: 16      # KNN特征维度
+        # knn_feature_dim: 64      # KNN特征维度
         max_range: 30            # 最大扫描范围（米）
         num_sector: 60           # 扇区数量，用于生成ScanContext描述子
         num_nearest_matches: 50   # 最近邻匹配数量
@@ -23,5 +23,6 @@ mapfusion:  # 地图融合相关配置
         loop_frame_threshold: 10    # 回环帧阈值（帧数）
         pcm_start_threshold: 5      # PCM开始阈值（5为最佳结果，2用于恶劣环境）
 
-        robot_initial: jackal0      # 初始机器人标识
+        # robot_initial: jackal0      # 初始机器人标识
+        robot_initial: xianfeng
         use_position_search: false  # 是否使用位置搜索（可能引入更多全局回环，但会增加候选检查时间）

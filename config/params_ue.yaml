@@ -1,9 +1,9 @@
 disco_slam:
 # 必须有 imu 话题
   # 话题
-  pointCloudTopic: "points_raw"               # 点云数据
+  pointCloudTopic: "lidar"               # 点云数据
 #  pointCloudTopic: "velodyne_points"
-  imuTopic: "imu_raw"                         # IMU数据
+  imuTopic: "imu"                         # IMU数据
 #  imuTopic: "imu/data"
   odomTopic: "odometry/imu"                   # IMU预积分里程计，与IMU频率相同
   gpsTopic: "odometry/gpsz"                   # 来自navsat的GPS里程计话题，参见module_navsat.launch文件
@@ -26,17 +26,19 @@ disco_slam:
 
   # 传感器设置
   sensor: velodyne                            # 激光雷达传感器类型，可选'velodyne'或'ouster'
-  # N_SCAN: 16                                  # 激光雷达通道数量（例如16, 32, 64, 128）
+  N_SCAN: 16                                  # 激光雷达通道数量（例如16, 32, 64, 128）
   # N_SCAN: 32                                  # 激光雷达通道数量（例如16, 32, 64, 128）
-  N_SCAN: 64                                  # 激光雷达通道数量（例如16, 32, 64, 128）
-  # Horizon_SCAN: 900                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
-  Horizon_SCAN: 1800                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
+  # N_SCAN: 64                                  # 激光雷达通道数量（例如16, 32, 64, 128）
+  Horizon_SCAN: 900                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
+  # Horizon_SCAN: 1800                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
   # Horizon_SCAN: 3600                          # 激光雷达水平分辨率（Velodyne:1800, Ouster:512,1024,2048）
   timeField: "time"                           # 激光雷达时间戳字段名称
-  # downsampleRate: 1                           # 默认：1。如果点太多，可以降采样数据。例如，16 = 64 / 4，16 = 16 / 1
-  downsampleRate: 4                           # 默认：1。如果点太多，可以降采样数据。例如，16 = 64 / 4，16 = 16 / 1
-  lidarMinRange: 1.0                          # 默认：1.0，使用的最小激光雷达范围，单位是米
-  lidarMaxRange: 1000.0                       # 默认：1000.0，使用的最大激光雷达范围
+  downsampleRate: 1                           # 默认：1。如果点太多，可以降采样数据。例如，16 = 64 / 4，16 = 16 / 1
+  # downsampleRate: 4                           # 默认：1。如果点太多，可以降采样数据。例如，16 = 64 / 4，16 = 16 / 1
+  # lidarMinRange: 1.0                          # 默认：1.0，使用的最小激光雷达范围，单位是米
+  lidarMinRange: 5.0                          # 默认：1.0，使用的最小激光雷达范围，单位是米
+  # lidarMaxRange: 1000.0                       # 默认：1000.0，使用的最大激光雷达范围
+  lidarMaxRange: 100.0                       # 默认：1000.0，使用的最大激光雷达范围
 
   # IMU设置
   imuAccNoise: 3.9939570888238808e-03
@@ -46,19 +48,26 @@ disco_slam:
   imuGravity: 9.80511
   imuRPYWeight: 0.01
 
+  # 数据集中是否包含维数
+  has_ring: false                              # lidar data format, if lidar driver has ring data publish, set 'ture'
+  # 雷达数据顶部的垂直角度
+  ang_bottom: 15.0                             # if 'has_ring' is false, change it
+  # 雷达数据垂直角度分辨率
+  ang_res_y: 2.0    
+
   # 外参（激光雷达 -> IMU）
-  extrinsicTrans: [-8.086759e-01, 3.195559e-01, -7.997231e-01]
+  # extrinsicTrans: [-8.086759e-01, 3.195559e-01, -7.997231e-01]
 
-  extrinsicRot: [9.999976e-01, 7.553071e-04, -2.035826e-03,
-                  -7.854027e-04, 9.998898e-01, -1.482298e-02,
-                  2.024406e-03, 1.482454e-02, 9.998881e-01]
+  # extrinsicRot: [9.999976e-01, 7.553071e-04, -2.035826e-03,
+  #                 -7.854027e-04, 9.998898e-01, -1.482298e-02,
+  #                 2.024406e-03, 1.482454e-02, 9.998881e-01]
 
-  extrinsicRPY: [9.999976e-01, 7.553071e-04, -2.035826e-03,
-                  -7.854027e-04, 9.998898e-01, -1.482298e-02,
-                   2.024406e-03, 1.482454e-02, 9.998881e-01]
+  # extrinsicRPY: [9.999976e-01, 7.553071e-04, -2.035826e-03,
+  #                 -7.854027e-04, 9.998898e-01, -1.482298e-02,
+  #                  2.024406e-03, 1.482454e-02, 9.998881e-01]
 
   # 定义了平移关系
-  # extrinsicTrans: [0.0, 0.0, 0.0]
+  extrinsicTrans: [0.0, 0.0, 0.0]
   # 定义了旋转关系（旋转矩阵，180）
   # extrinsicRot: [-1, 0, 0,
   #                 0, 1, 0,
@@ -69,12 +78,12 @@ disco_slam:
   #                 0, 0, 1]
   # 雷达坐标系的点 = 旋转矩阵extrinsicRot * IMU坐标系的点（其实是IMU的值）
   # 目的：把IMU的位置和旋转发布到雷达坐标系下，方便雷达处理
-  # extrinsicRot: [1, 0, 0,
-  #                 0, 1, 0,
-  #                 0, 0, 1]
-  # extrinsicRPY: [1, 0, 0,
-  #                 0, 1, 0,
-  #                 0, 0, 1]
+  extrinsicRot: [1, 0, 0,
+                  0, 1, 0,
+                  0, 0, 1]
+  extrinsicRPY: [1, 0, 0,
+                  0, 1, 0,
+                  0, 0, 1]
 
   # LOAM特征提取阈值参数
   edgeThreshold: 1.0          # 边缘特征提取的曲率阈值，大于此值被认为是边缘点
@@ -83,9 +92,9 @@ disco_slam:
   surfFeatureMinValidNum: 100 # 平面特征点最小有效数量，低于此值则跳过该帧平面特征提取
 
   # 体素滤波参数
-  odometrySurfLeafSize: 0.4                     # 默认：0.4
-  mappingCornerLeafSize: 0.2                    # 默认：0.2
-  mappingSurfLeafSize: 0.4                      # 默认：0.4
+  odometrySurfLeafSize: 0.2                     # 默认：0.4
+  mappingCornerLeafSize: 0.1                    # 默认：0.2
+  mappingSurfLeafSize: 0.2                      # 默认：0.4
 
   # 机器人运动约束（适用于2D机器人）
   z_tollerance: 1000                            # 米
@@ -93,20 +102,20 @@ disco_slam:
 
   # CPU参数
   numberOfCores: 4                              # 用于地图优化的核心数
-  mappingProcessInterval: 0.15                  # 秒，调节地图构建频率
+  mappingProcessInterval: 0.5                  # 秒，调节地图构建频率
   # （优化点云加载的时间间隔，每次把0.15秒的点云加载到优化器）
 
   # 配准的时候，周围地图
   surroundingkeyframeAddingDistThreshold: 1.0   # 米，调节关键帧添加阈值(移动超过此阈值，记录一帧)
   surroundingkeyframeAddingAngleThreshold: 0.2  # 弧度，调节关键帧添加阈值(旋转超过阈值，记录一帧)
-  surroundingKeyframeDensity: 2.0               # 米，下采样周围关键帧位姿   
-  surroundingKeyframeSearchRadius: 50.0         # 米，在n米范围内进行扫描到地图的优化（当回环检测禁用时）
+  surroundingKeyframeDensity: 1.0               # 米，下采样周围关键帧位姿   
+  surroundingKeyframeSearchRadius: 5.0         # 米，在n米范围内进行扫描到地图的优化（当回环检测禁用时）
 
   # 回环检测
   loopClosureEnableFlag: true                   # 是否启用回环检测功能，true表示启用，false表示禁用
   loopClosureFrequency: 1.0                     # 赫兹，调节回环约束添加频率
-  surroundingKeyframeSize: 50                   # 子地图大小（当回环检测启用时，越大越困难）
-  historyKeyframeSearchRadius: 15.0             # 米，距离当前位姿n米内的关键帧将被考虑用于回环检测
+  surroundingKeyframeSize: 5                   # 子地图大小（当回环检测启用时，越大越困难）
+  historyKeyframeSearchRadius: 1.5             # 米，距离当前位姿n米内的关键帧将被考虑用于回环检测
   historyKeyframeSearchTimeDiff: 30.0           # 秒，n秒以前的关键帧将被考虑用于回环检测（很重要）
   historyKeyframeSearchNum: 25                  # 将融合到子地图中用于回环检测的历史关键帧数量
   historyKeyframeFitnessScore: 0.3              # ICP阈值，越小表示对齐越好

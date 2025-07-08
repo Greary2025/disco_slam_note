@@ -1,0 +1,63 @@
+<launch>
+    <!-- 启用 use_sim_time 参数 -->
+    <param name="/use_sim_time" value="true" />
+    <!-- <arg name="project" default="disco_slam"/>      项目名称，默认为disco_slam -->
+    <arg name="discoslam_bag" value="/mnt/c/Users/Greary/Documents/rosbag/double2/double_0707.bag"/>
+
+    <!-- 启动 rosbag play 节点 -->
+    <!-- <node name="rosbag_player" pkg="rosbag" type="play"  -->
+    <!-- args="$(env HOME)/rosbag/disco/kitti08_2.bag -l -/-clock"/> -->
+
+    <!-- 定义参数 -->
+    <arg name="no"      default="1"/>  <!-- 编号参数 -->
+    <arg name="project" default="disco_slam"/>  <!-- 项目名称 -->
+    <arg name="robot0"	default="xianfeng"/>  <!-- 机器人0名称 -->
+    <arg name="robot1"	default="gensui"/>  <!-- 机器人1名称 -->
+    <arg name="robot2"	default="jackal2"/>  <!-- 机器人2名称 -->
+
+    <!-- 加载参数文件 -->
+    <rosparam file="$(find disco_slam)/config/params_ue.yaml" command="load" />
+    <rosparam file="$(find disco_slam)/src/DiSCo-SLAM/config/mapfusion_ue.yaml" command="load"/>
+    <!-- 启动机器人0的LOAM模块 -->
+    <include file="$(find disco_slam)/launch/include/module_loam_ue5.launch" >
+        <arg name="robot" value="$(arg robot0)"/>
+        <arg name="id1" value="$(arg robot1)"/>
+        <arg name="id2" value="$(arg robot2)"/>
+        <arg name="no" value="$(arg no)"/>
+    </include>
+
+    <!-- 启动机器人1的LOAM模块 -->
+    <include file="$(find disco_slam)/launch/include/module_loam_ue5.launch" >
+        <arg name="robot" value="$(arg robot1)"/>
+        <arg name="id1" value="$(arg robot0)"/>
+        <arg name="id2" value="$(arg robot2)"/>
+        <arg name="no" value="$(arg no)"/>
+    </include>
+
+    <!-- 启动机器人2的LOAM模块 -->
+    <!-- <include file="$(find disco_slam)/launch/include/module_loam.launch" >
+        <arg name="robot" value="$(arg robot2)"/>
+        <arg name="id1" value="$(arg robot0)"/>
+        <arg name="id2" value="$(arg robot1)"/>
+        <arg name="no" value="$(arg no)"/>
+    </include> -->
+
+    <!-- 机器人状态TF转换 (已注释) -->
+    <!-- <include file="$(find disco_slam)/launch/include/module_robot_state_publisher.launch" /> -->
+
+    <!-- 运行导航卫星模块 (已注释) -->
+    <!-- <include file="$(find disco_slam)/launch/include/module_navsat.launch" /> -->
+
+    <!-- 运行Rviz可视化工具 -->
+    <include file="$(find disco_slam)/launch/include/module_rviz_ue_1.launch" />
+
+    <!-- 运行通信模拟器 (已注释) -->
+    <!-- <node pkg="$(arg project)" name= "$(arg project)_listener" type="listener.py" output="screen"/> -->
+
+    <!-- <node name="rosbag_player" pkg="rosbag" type="play" output="screen" args="-r 1 -q $(arg discoslam_bag)">
+    </node> -->
+    
+
+</launch>
+
+
