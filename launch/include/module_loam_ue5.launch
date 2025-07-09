@@ -6,47 +6,52 @@
     <arg name="id1"     default="jackal1"/>         <!-- 协作机器人1的ID，默认为jackal1 -->
     <arg name="id2"     default="jackal2"/>         <!-- 协作机器人2的ID，默认为jackal2 -->
 
-    <!-- <group>     -->
+    <group>    
         <!-- IMU预积分节点：处理IMU数据，计算位姿增量 -->
-        <!-- <node pkg="$(arg project)" type="$(arg project)_imuPreintegration"   name="$(arg project)_imuPreintegration_$(arg robot)"   output="screen"     respawn="true"> -->
+        <node pkg="$(arg project)" type="$(arg project)_imuPreintegration"   name="$(arg project)_imuPreintegration_$(arg robot)"   output="screen"     respawn="true">
             <!-- 设置机器人ID参数 -->
-            <!-- <param name="/robot_id" type="string" value = "$(arg robot)"/> -->
+            <param name="/robot_id" type="string" value = "$(arg robot)"/>
             <!-- 设置节点编号参数 -->
-            <!-- <param name="/no"       type="int"    value = "$(arg no)"   /> -->
-        <!-- </node> -->
+            <param name="/no"       type="int"    value = "$(arg no)"   />
+        </node>
         
         <!-- 图像投影节点：将激光点云投影到图像平面，进行去畸变处理 -->
-        <!-- <node pkg="$(arg project)" type="$(arg project)_imageProjection"     name="$(arg project)_imageProjection_$(arg robot)"  	output="screen"     respawn="true"> -->
+        <node pkg="$(arg project)" type="$(arg project)_imageProjection"     name="$(arg project)_imageProjection_$(arg robot)"  	output="screen"     respawn="true">
             <!-- 设置机器人ID参数 -->
-            <!-- <param name="/robot_id" type="string" value = "$(arg robot)"/> -->
+            <param name="/robot_id" type="string" value = "$(arg robot)"/>
             <!-- 设置节点编号参数 -->
-            <!-- <param name="/no"       type="int"    value = "$(arg no)"   /> -->
-        <!-- </node> -->
+            <param name="/no"       type="int"    value = "$(arg no)"   />
+        </node>
         
         <!-- 特征提取节点：从点云中提取边缘和平面特征 -->
-        <!-- <node pkg="$(arg project)" type="$(arg project)_featureExtraction"   name="$(arg project)_featureExtraction_$(arg robot)"	output="screen"     respawn="true"> -->
+        <node pkg="$(arg project)" type="$(arg project)_featureExtraction"   name="$(arg project)_featureExtraction_$(arg robot)"	output="screen"     respawn="true">
             <!-- 设置机器人ID参数 -->
-            <!-- <param name="/robot_id" type="string" value = "$(arg robot)"/> -->
+            <param name="/robot_id" type="string" value = "$(arg robot)"/>
             <!-- 设置节点编号参数 -->
-            <!-- <param name="/no"       type="int"    value = "$(arg no)"   /> -->
-        <!-- </node> -->
+            <param name="/no"       type="int"    value = "$(arg no)"   />
+        </node>
         
         <!-- 地图优化节点：进行特征匹配和位姿优化，构建局部地图 -->
-        <!-- <node pkg="$(arg project)" type="$(arg project)_mapOptmization"      name="$(arg project)_mapOptmization_$(arg robot)"   	output="screen"     respawn="false"> -->
+        <node pkg="$(arg project)" type="$(arg project)_mapOptmization"      name="$(arg project)_mapOptmization_$(arg robot)"   	output="screen"     respawn="false">
             <!-- 设置机器人ID参数 -->
-            <!-- <param name="/robot_id" type="string" value = "$(arg robot)"/> -->
+            <param name="/robot_id" type="string" value = "$(arg robot)"/>
             <!-- 设置节点编号参数 -->
-            <!-- <param name="/no"       type="int"    value = "$(arg no)"   /> -->
-        <!-- </node> -->
-    <!-- </group> -->
+            <param name="/no"       type="int"    value = "$(arg no)"   />
+        </node>
+    </group>
 
    <!-- 地图融合节点：将多个机器人的局部地图融合为全局地图 -->
-   <node pkg="$(arg project)" type="$(arg project)_mapFusion" name="$(arg project)_mapFusion_$(arg robot)"   output="screen"     respawn="false">
-       <param name="/robot_id"          type="string" value = "$(arg robot)"/>   <!-- 主机器人ID -->
-       <param name="/id_1"              type="string" value = "$(arg id1)"  />   <!-- 协作机器人1的ID -->
-       <param name="/id_2"              type="string" value = "$(arg id2)"  />   <!-- 协作机器人2的ID -->
-       <param name="/no"                type="int"    value = "$(arg no)"   />   <!-- 节点编号 -->
-       <param name="/pcm_matrix_folder" type="string" value="$(find disco_slam)/config"/>   <!-- PCM矩阵配置文件夹路径 -->
-   </node>
+   <!-- <node pkg="$(arg project)" type="$(arg project)_mapFusion" name="$(arg project)_mapFusion_$(arg robot)"   output="screen"     respawn="false"> -->
+       <!-- 主机器人ID -->
+       <!-- <param name="/robot_id"          type="string" value = "$(arg robot)"/> -->
+       <!-- 协作机器人1的ID -->
+       <!-- <param name="/id_1"              type="string" value = "$(arg id1)"  /> -->
+       <!-- 协作机器人2的ID -->
+       <!-- <param name="/id_2"              type="string" value = "$(arg id2)"  /> -->
+       <!-- 节点编号 -->
+       <!-- <param name="/no"                type="int"    value = "$(arg no)"   /> -->
+       <!-- PCM矩阵配置文件夹路径 -->
+       <!-- <param name="/pcm_matrix_folder" type="string" value="$(find disco_slam)/config"/> -->
+   <!-- </node> -->
 
 </launch>

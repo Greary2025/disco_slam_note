@@ -27,12 +27,12 @@
     </include>
 
     <!-- 启动机器人1的LOAM模块 -->
-    <include file="$(find disco_slam)/launch/include/module_loam_ue5.launch" >
+    <!-- <include file="$(find disco_slam)/launch/include/module_loam_ue5.launch" >
         <arg name="robot" value="$(arg robot1)"/>
         <arg name="id1" value="$(arg robot0)"/>
         <arg name="id2" value="$(arg robot2)"/>
         <arg name="no" value="$(arg no)"/>
-    </include>
+    </include> -->
 
     <!-- 启动机器人2的LOAM模块 -->
     <!-- <include file="$(find disco_slam)/launch/include/module_loam.launch" >
@@ -54,8 +54,7 @@
     <!-- 运行通信模拟器 (已注释) -->
     <!-- <node pkg="$(arg project)" name= "$(arg project)_listener" type="listener.py" output="screen"/> -->
 
-    <!-- <node name="rosbag_player" pkg="rosbag" type="play" output="screen" args="-r 1 -q $(arg discoslam_bag)">
-    </node> -->
+    <node name="rosbag_player" pkg="rosbag" type="play" output="screen" args="-r 1 -q $(arg discoslam_bag)">  </node>
     
 
 </launch>

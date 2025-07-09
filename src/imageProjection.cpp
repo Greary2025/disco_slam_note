@@ -1,6 +1,7 @@
 // 数据预处理模块
 #include "utility.h"
-#include "disco_slam/cloud_info.h"
+// #include "disco_slam/cloud_info.h"
+#include "disco_slam/ring_cloud_info.h"
 // Velodyne激光雷达点结构定义，包含XYZI(坐标和强度)、ring(线号)和time(时间戳)
 struct VelodynePointXYZIRT
 {
@@ -98,7 +99,8 @@ private:
     float odomIncreY;  // Y轴增量
     float odomIncreZ;  // Z轴增量
     // 点云信息
-    disco_slam::cloud_info cloudInfo;
+    // disco_slam::cloud_info cloudInfo;
+    disco_slam::ring_cloud_info cloudInfo;
     double timeScanCur;  // 当前扫描起始时间
     double timeScanEnd;  // 当前扫描结束时间
     std_msgs::Header cloudHeader;  // 点云头信息
@@ -120,7 +122,8 @@ public:
         // 订阅里程计增量话题
         // 注意话题名后缀"_incremental"表示增量数据，用于里程计去畸变
         // 其他参数含义同上
-        subOdom = nh.subscribe<nav_msgs::Odometry>(robot_id + "/" + odomTopic+"_incremental", 2000, &ImageProjection::odometryHandler, this, ros::TransportHints().tcpNoDelay());
+        // subOdom = nh.subscribe<nav_msgs::Odometry>(robot_id + "/" + odomTopic+"_incremental", 2000, &ImageProjection::odometryHandler, this, ros::TransportHints().tcpNoDelay());
+        subOdom = nh.subscribe<nav_msgs::Odometry>(robot_id + "/" + "disco_slam/mapping/odometry"+"_incremental", 5, &ImageProjection::odometryHandler, this, ros::TransportHints().tcpNoDelay());
         
         // 订阅激光雷达点云话题
         // 参数2: 5 - 队列长度较小，因为点云数据量大，避免占用过多内存
@@ -138,7 +141,8 @@ public:
         // 参数1: robot_id + "/disco_slam/deskew/cloud_info" - 发布话题名称，用于发布点云的附加信息
         // 参数2: 1 - 消息队列长度，只保留最新的1条消息
         // 消息类型为自定义的disco_slam::cloud_info，包含点云的结构化信息
-        pubLaserCloudInfo = nh.advertise<disco_slam::cloud_info> (robot_id + "/disco_slam/deskew/cloud_info", 1);
+        // pubLaserCloudInfo = nh.advertise<disco_slam::cloud_info> (robot_id + "/disco_slam/deskew/cloud_info", 1);
+        pubLaserCloudInfo = nh.advertise<disco_slam::ring_cloud_info> (robot_id + "/disco_slam/deskew/cloud_info", 1);
 
         // 分配内存并初始化参数
         allocateMemory();
@@ -202,6 +206,8 @@ public:
             imuRotY[i] = 0;         // 清空Y轴旋转
             imuRotZ[i] = 0;         // 清空Z轴旋转
         }
+
+        // columnIdnCountVec.assign(N_SCAN, 0);
     }
 
     ~ImageProjection(){}
@@ -289,6 +295,12 @@ public:
         if (sensor == SensorType::VELODYNE)
         {
             pcl::moveFromROSMsg(currentCloudMsg, *laserCloudIn);
+            // ring问题的修正
+            // indices 是一个索引向量，用于存储保留的点的索引
+            std::vector<int> indices;
+            // 通过去除无效点获取索引值，（原始点云，目标点云，索引值）cloud_in->is_dense = false;才能使用
+            // pcl::removeNaNFromPointCloud(*laserCloudIn, *laserCloudIn, indices);
+            // ring问题的修正end
         }
         else if (sensor == SensorType::OUSTER)
         {
@@ -325,6 +337,11 @@ public:
             ROS_ERROR("Point cloud is not in dense format, please remove NaN points first!");
             ros::shutdown();
         }
+
+        // ring问题的修正
+        if (!has_ring)
+            return true;
+        // ring问题的修正end
 
         // 检查点云是否包含ring通道
         static int ringFlag = 0;
@@ -646,6 +663,29 @@ public:
     void projectPointCloud()
     {
         int cloudSize = laserCloudIn->points.size();
+
+        // ring问题的修正
+        // 用于标记扫描是否过半的标志
+        bool halfPassed = false;
+        // 计算扫描起始点的水平方向角度，使用反正切函数计算y/x的角度，取负号调整方向
+        cloudInfo.startOrientation = -atan2(laserCloudIn->points[0].y, laserCloudIn->points[0].x);
+        // 计算扫描结束点的水平方向角度，同样使用反正切函数计算y/x的角度，取负号调整方向
+        // 加上2 * M_PI确保角度在合理范围内
+        cloudInfo.endOrientation   = -atan2(laserCloudIn->points[laserCloudIn->points.size() - 1].y,
+                                                     laserCloudIn->points[laserCloudIn->points.size() - 1].x) + 2 * M_PI;
+        // 检查结束角度与起始角度的差值是否过大（超过3 * M_PI）
+        // 如果过大，说明角度计算可能绕了一圈，减去2 * M_PI进行修正
+        if (cloudInfo.endOrientation - cloudInfo.startOrientation > 3 * M_PI) {
+            cloudInfo.endOrientation -= 2 * M_PI;
+        } 
+        // 检查结束角度与起始角度的差值是否过小（小于M_PI）
+        // 如果过小，说明角度计算可能绕了一圈，加上2 * M_PI进行修正
+        else if (cloudInfo.endOrientation - cloudInfo.startOrientation < M_PI)
+            cloudInfo.endOrientation += 2 * M_PI;
+        // 计算扫描结束角度与起始角度的差值，得到整个扫描过程的角度变化量
+        cloudInfo.orientationDiff = cloudInfo.endOrientation - cloudInfo.startOrientation;
+        // ring问题的修正end
+        
         // 遍历所有点进行投影
         for (int i = 0; i < cloudSize; ++i)
         {
@@ -660,8 +700,31 @@ public:
             if (range < lidarMinRange || range > lidarMaxRange)
                 continue;
 
+            // ring问题的修正（注释）
             // 获取点所在的线束ID
-            int rowIdn = laserCloudIn->points[i].ring;
+            // int rowIdn = laserCloudIn->points[i].ring;
+            // ring问题的修正（注释）end
+
+            // ring问题的修正
+            // 初始化线束编号为 -1，表示尚未确定
+            int rowIdn = -1;
+            // 检查点云数据中是否包含 ring 通道
+            if (has_ring == true){
+                // 如果包含 ring 通道，直接从点云数据中获取线束编号
+                rowIdn = laserCloudIn->points[i].ring;
+            }
+            else{
+                // 若不包含 ring 通道，需要手动计算线束编号
+                // 定义垂直角度和水平角度变量
+                float verticalAngle, horizonAngle;
+                // 计算当前点的垂直角度，使用反正切函数计算 z 坐标与 xy 平面投影距离的比值
+                // 并将结果转换为角度值
+                verticalAngle = atan2(thisPoint.z, sqrt(thisPoint.x * thisPoint.x 
+                                    + thisPoint.y * thisPoint.y)) * 180 / M_PI;
+                // 根据垂直角度、雷达数据顶部的垂直角度和垂直角度分辨率计算线束编号
+                rowIdn = (verticalAngle + ang_bottom) / ang_res_y;
+            }
+            // ring问题的修正end
             
             if (rowIdn < 0 || rowIdn >= N_SCAN)
                 continue;
@@ -686,8 +749,52 @@ public:
             if (rangeMat.at<float>(rowIdn, columnIdn) != FLT_MAX)
                 continue;
 
-            // 去畸变处理
-            thisPoint = deskewPoint(&thisPoint, laserCloudIn->points[i].time);
+            // 去畸变处理(ring问题可注释)
+            // thisPoint = deskewPoint(&thisPoint, laserCloudIn->points[i].time);
+
+            // ring问题修正
+            // 检查点云数据是否包含 ring 通道
+            if (has_ring == true)
+                // 若包含 ring 通道，直接使用点云数据中的时间戳进行点云去畸变处理
+                thisPoint = deskewPoint(&thisPoint, laserCloudIn->points[i].time);
+            else {
+                // 若不包含 ring 通道，需要手动计算相对时间
+                // 计算当前点的水平方向角度，使用反正切函数计算 y/x 的角度并取负号
+                float ori = -atan2(thisPoint.y, thisPoint.x);
+                // 检查扫描是否过半
+                if (!halfPassed) {
+                    // 若扫描未过半，对角度进行修正，确保角度在合理范围内
+                    if (ori < cloudInfo.startOrientation - M_PI / 2) {
+                        // 若角度过小，加上 2 * M_PI 进行修正
+                        ori += 2 * M_PI;
+                    } else if (ori > cloudInfo.startOrientation + M_PI * 3 / 2) {
+                        // 若角度过大，减去 2 * M_PI 进行修正
+                        ori -= 2 * M_PI;
+                    }
+                    // 检查当前角度与起始角度的差值是否超过 π，若超过则标记扫描过半
+                    if (ori - cloudInfo.startOrientation > M_PI) {
+                        halfPassed = true;
+                    }
+                } else {
+                    // 若扫描已过半，先给角度加上 2 * M_PI
+                    ori += 2 * M_PI;
+                    // 对角度进行修正，确保角度在合理范围内
+                    if (ori < cloudInfo.endOrientation - M_PI * 3 / 2) {
+                        // 若角度过小，加上 2 * M_PI 进行修正
+                        ori += 2 * M_PI;
+                    } else if (ori > cloudInfo.endOrientation + M_PI / 2) {
+                        // 若角度过大，减去 2 * M_PI 进行修正
+                        ori -= 2 * M_PI;
+                    }
+                }
+                // 计算当前点相对于扫描起始点的相对时间比例
+                float relTime = (ori - cloudInfo.startOrientation) / cloudInfo.orientationDiff;
+                // 激光雷达频率为 10Hz，周期为 0.1 秒，根据相对时间比例计算当前点的时间戳
+                laserCloudIn->points[i].time = 0.1 * relTime;
+                // 使用计算得到的时间戳进行点云去畸变处理
+                thisPoint = deskewPoint(&thisPoint, laserCloudIn->points[i].time);
+            }
+            // ring问题修正end
 
             // 更新距离图像
             rangeMat.at<float>(rowIdn, columnIdn) = range;

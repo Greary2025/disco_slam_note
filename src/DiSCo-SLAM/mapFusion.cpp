@@ -3,7 +3,8 @@
 //
 
 //msg
-#include "disco_slam/cloud_info.h"
+// #include "disco_slam/cloud_info.h"
+#include "disco_slam/ring_cloud_info.h"
 #include "disco_slam/context_info.h"
 
 //third party
@@ -143,7 +144,8 @@ std::string _robot_initial;  // 初始机器人
 std::string _pcm_matrix_folder; // PCM矩阵文件夹
 
 // 数据存储结构
-disco_slam::cloud_info _cloud_info;  // 点云信息
+// disco_slam::cloud_info _cloud_info;  // 点云信息
+disco_slam::ring_cloud_info _cloud_info;  // 点云信息
 std::vector<ScanContextBin> _context_list_to_publish_1; // 待发布上下文列表1
 std::vector<ScanContextBin> _context_list_to_publish_2; // 待发布上下文列表2
 
@@ -223,7 +225,9 @@ public:
                  100, &MapFusion::signalHandler2, this, ros::TransportHints().tcpNoDelay());
 
         // 设置激光点云信息订阅器
-        _sub_laser_cloud_info = nh.subscribe<disco_slam::cloud_info>(_robot_id + "/" + _local_topic,
+        // _sub_laser_cloud_info = nh.subscribe<disco_slam::cloud_info>(_robot_id + "/" + _local_topic,
+        //         1, &MapFusion::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
+        _sub_laser_cloud_info = nh.subscribe<disco_slam::ring_cloud_info>(_robot_id + "/" + _local_topic,
                 1, &MapFusion::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
         // 设置全局闭环信息订阅器
@@ -413,7 +417,8 @@ private:
      * 3. 将bin信息加入待发布队列
      * 4. 发布上下文信息
      */
-    void laserCloudInfoHandler(const disco_slam::cloud_infoConstPtr& msgIn)
+    // void laserCloudInfoHandler(const disco_slam::cloud_infoConstPtr& msgIn)
+    void laserCloudInfoHandler(const disco_slam::ring_cloud_infoConstPtr& msgIn)
     {
         // 清空各类点云容器
         _laser_cloud_sum->clear();      // 清空总点云

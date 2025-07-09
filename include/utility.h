@@ -174,6 +174,18 @@ public:
 
     int number_print;  // 调试打印频率控制
 
+    // ring问题修正
+    // 标记点云数据是否包含 ring 通道
+    // 若为 true，表示点云数据中包含线束编号信息，可直接获取；若为 false，则需要手动计算
+    bool has_ring;
+    // 雷达数据顶部的垂直角度，单位为度
+    // 当 has_ring 为 false 时，该参数用于手动计算线束编号
+    float ang_bottom;
+    // 雷达数据垂直角度分辨率，单位为度
+    // 当 has_ring 为 false 时，结合 ang_bottom 用于手动计算线束编号
+    float ang_res_y;
+    // ring问题修正end
+
     ParamServer()
         {
             // 初始化私有节点句柄
@@ -189,7 +201,25 @@ public:
             nh.param<std::string>("disco_slam/imuTopic", imuTopic, "imu_correct");
             nh.param<std::string>("disco_slam/odomTopic", odomTopic, "odometry/imu");
             nh.param<std::string>("disco_slam/gpsTopic", gpsTopic, "odometry/gps");
-        
+            
+            // ring问题修正
+            // 从ROS参数服务器加载点云数据是否包含 ring 通道的配置参数
+            // 参数名称为 "disco_slam/has_ring"
+            // 若参数服务器中未找到该参数，默认值为 false
+            // 若为 true，表示点云数据中包含线束编号信息，可直接获取；若为 false，则需要手动计算
+            nh.param<bool>("disco_slam/has_ring", has_ring, false);
+            // 从ROS参数服务器加载雷达数据顶部的垂直角度配置参数
+            // 参数名称为 "disco_slam/ang_bottom"
+            // 若参数服务器中未找到该参数，默认值为 15.0 度
+            // 当 has_ring 为 false 时，该参数用于手动计算线束编号
+            nh.param<float>("disco_slam/ang_bottom", ang_bottom, 15.0);
+            // 从ROS参数服务器加载雷达数据垂直角度分辨率配置参数
+            // 参数名称为 "disco_slam/ang_res_y"
+            // 若参数服务器中未找到该参数，默认值为 2.0 度
+            // 当 has_ring 为 false 时，结合 ang_bottom 用于手动计算线束编号
+            nh.param<float>("disco_slam/ang_res_y", ang_res_y, 2.0);
+            // ring问题修正end
+
             // 加载坐标系名称参数
             nh.param<std::string>("disco_slam/lidarFrame", lidarFrame, "base_link");
             nh.param<std::string>("disco_slam/baselinkFrame", baselinkFrame, "base_link");

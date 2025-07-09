@@ -42,7 +42,8 @@ find_package(libnabo REQUIRED)  # libnabo库
 add_message_files(
   DIRECTORY msg
   FILES
-  cloud_info.msg    # 点云信息消息
+  # cloud_info.msg    # 点云信息消息
+  ring_cloud_info.msg
   context_info.msg  # 上下文信息消息
 )
 
@@ -126,30 +127,52 @@ add_library(scan_context
 
 # 点云投影节点
 add_executable(${PROJECT_NAME}_imageProjection src/imageProjection.cpp)
-add_dependencies(${PROJECT_NAME}_imageProjection ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
-target_link_libraries(${PROJECT_NAME}_imageProjection ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
+add_dependencies(${PROJECT_NAME}_imageProjection 
+                  ${catkin_EXPORTED_TARGETS} 
+                  ${PROJECT_NAME}_generate_messages_cpp)
+target_link_libraries(${PROJECT_NAME}_imageProjection 
+                      ${catkin_LIBRARIES} 
+                      ${PCL_LIBRARIES} 
+                      ${OpenCV_LIBRARIES})
 
 # 特征提取节点
 add_executable(${PROJECT_NAME}_featureExtraction src/featureExtraction.cpp)
-add_dependencies(${PROJECT_NAME}_featureExtraction ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
-target_link_libraries(${PROJECT_NAME}_featureExtraction ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
+add_dependencies(${PROJECT_NAME}_featureExtraction 
+                ${catkin_EXPORTED_TARGETS} 
+                ${PROJECT_NAME}_generate_messages_cpp)
+target_link_libraries(${PROJECT_NAME}_featureExtraction 
+                      ${catkin_LIBRARIES} 
+                      ${PCL_LIBRARIES} 
+                      ${OpenCV_LIBRARIES})
 
 # 地图优化节点
 add_executable(${PROJECT_NAME}_mapOptmization src/mapOptmization.cpp)
-add_dependencies(${PROJECT_NAME}_mapOptmization ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
-target_compile_options(${PROJECT_NAME}_mapOptmization PRIVATE ${OpenMP_CXX_FLAGS})
-target_link_libraries(${PROJECT_NAME}_mapOptmization ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${OpenMP_CXX_FLAGS} gtsam)
+add_dependencies(${PROJECT_NAME}_mapOptmization 
+                ${catkin_EXPORTED_TARGETS} 
+                ${PROJECT_NAME}_generate_messages_cpp)
+target_compile_options(${PROJECT_NAME}_mapOptmization PRIVATE 
+                      ${OpenMP_CXX_FLAGS})
+target_link_libraries(${PROJECT_NAME}_mapOptmization 
+                      ${catkin_LIBRARIES} 
+                      ${PCL_LIBRARIES} 
+                      ${OpenCV_LIBRARIES} 
+                      ${OpenMP_CXX_FLAGS} 
+                      gtsam)
 
 # IMU预积分节点
 add_executable(${PROJECT_NAME}_imuPreintegration src/imuPreintegration.cpp)
-target_link_libraries(${PROJECT_NAME}_imuPreintegration ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} gtsam)
+target_link_libraries(${PROJECT_NAME}_imuPreintegration 
+${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} gtsam)
 
 # 地图融合节点
 add_executable(${PROJECT_NAME}_mapFusion src/DiSCo-SLAM/mapFusion.cpp)
-add_dependencies(${PROJECT_NAME}_mapFusion ${catkin_EXPORTED_TARGETS}  ${PROJECT_NAME}_generate_messages_cpp)
-target_link_libraries(${PROJECT_NAME}_mapFusion ${catkin_LIBRARIES}
-		${PCL_LIBRARIES} libnabo::nabo
-		gtsam fast_max-clique_finder scan_context)
+add_dependencies(${PROJECT_NAME}_mapFusion 
+                ${catkin_EXPORTED_TARGETS}  
+                ${PROJECT_NAME}_generate_messages_cpp)
+target_link_libraries(${PROJECT_NAME}_mapFusion 
+                      ${catkin_LIBRARIES}
+                      ${PCL_LIBRARIES} libnabo::nabo
+                      gtsam fast_max-clique_finder scan_context)
 
 # 安装Python脚本(已注释)
 #catkin_install_python(PROGRAMS scripts/listener.py

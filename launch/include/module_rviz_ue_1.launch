@@ -3,6 +3,8 @@
     <arg name="project" default="disco_slam"/>
 
     <!--- Run Rviz-->
-    <node pkg="rviz" type="rviz" name="$(arg project)_rviz" args="-d $(find disco_slam)/launch/include/config/rviz_ue.rviz" />
+    <!-- <node pkg="rviz" type="rviz" name="$(arg project)_rviz" args="-d $(find disco_slam)/launch/include/config/rviz_ue.rviz" /> -->
+    <node pkg="rviz" type="rviz" name="$(arg project)_rviz" args="-d $(find disco_slam)/launch/include/config/rviz_xianfeng.rviz" />
+    <!-- <node pkg="rviz" type="rviz" name="$(arg project)_rviz" args="-d $(find disco_slam)/launch/include/config/rviz_gensui.rviz" /> -->
 
 </launch>
