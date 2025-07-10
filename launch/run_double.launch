@@ -2,7 +2,7 @@
     <!-- 启用 use_sim_time 参数 -->
     <param name="/use_sim_time" value="true" />
     <!-- <arg name="project" default="disco_slam"/>      项目名称，默认为disco_slam -->
-    <arg name="discoslam_bag" value="/mnt/c/Users/Greary/Documents/rosbag/double2/double_0707.bag"/>
+    <arg name="discoslam_bag" value="/mnt/c/Users/Greary/Documents/rosbag/double2/double_0708.bag"/>
 
     <!-- 启动 rosbag play 节点 -->
     <!-- <node name="rosbag_player" pkg="rosbag" type="play"  -->

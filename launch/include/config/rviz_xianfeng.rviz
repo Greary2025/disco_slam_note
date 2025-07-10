@@ -6,10 +6,7 @@ Panels:
       Expanded:
         - /Status1
         - /links1
-        - /links1/base_link_01/Status1
         - /Odometry1
-        - /Point Cloud1
-        - /Feature Cloud1
         - /Mapping 01
       Splitter Ratio: 0.5600000023841858
     Tree Height: 410
@@ -213,7 +210,7 @@ Visualization Manager:
           Size (Pixels): 2
           Size (m): 0.009999999776482582
           Style: Points
-          Topic: /jackal0/disco_slam/deskew/cloud_deskewed
+          Topic: /xianfeng/disco_slam/deskew/cloud_deskewed
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -246,34 +243,6 @@ Visualization Manager:
           Use Fixed Frame: true
           Use rainbow: true
           Value: false
-        - Alpha: 1
-          Autocompute Intensity Bounds: true
-          Autocompute Value Bounds:
-            Max Value: 10
-            Min Value: -10
-            Value: true
-          Axis: Z
-          Channel Name: intensity
-          Class: rviz/PointCloud2
-          Color: 255; 170; 127
-          Color Transformer: FlatColor
-          Decay Time: 0
-          Enabled: true
-          Invert Rainbow: false
-          Max Color: 255; 255; 255
-          Min Color: 0; 0; 0
-          Name: Velodyne_1
-          Position Transformer: XYZ
-          Queue Size: 9
-          Selectable: false
-          Size (Pixels): 2
-          Size (m): 0.009999999776482582
-          Style: Points
-          Topic: /jackal1/disco_slam/deskew/cloud_deskewed
-          Unreliable: false
-          Use Fixed Frame: true
-          Use rainbow: true
-          Value: true
       Enabled: true
       Name: Point Cloud
     - Class: rviz/Group
@@ -341,14 +310,14 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 13.62212085723877
-            Min Value: -5.902228832244873
+            Max Value: 16.171079635620117
+            Min Value: -5.613651752471924
             Value: true
           Axis: Z
           Channel Name: intensity
           Class: rviz/PointCloud2
           Color: 255; 255; 255
-          Color Transformer: AxisColor
+          Color Transformer: FlatColor
           Decay Time: 0
           Enabled: true
           Invert Rainbow: false
@@ -378,7 +347,7 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: Intensity
           Decay Time: 0
-          Enabled: true
+          Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Min Color: 0; 0; 0
@@ -393,7 +362,7 @@ Visualization Manager:
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
-          Value: true
+          Value: false
         - Alpha: 1
           Buffer Length: 1
           Class: rviz/Path
@@ -403,7 +372,7 @@ Visualization Manager:
           Head Length: 0.20000000298023224
           Length: 0.30000001192092896
           Line Style: Billboards
-          Line Width: 2
+          Line Width: 0.10000000149011612
           Name: Path (global)_0
           Offset:
             X: 0
@@ -430,7 +399,7 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: Intensity
           Decay Time: 0
-          Enabled: true
+          Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Min Color: 0; 0; 0
@@ -445,7 +414,7 @@ Visualization Manager:
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
-          Value: true
+          Value: false
       Enabled: true
       Name: Mapping 0
     - Class: rviz/Group
@@ -792,7 +761,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 125.2005615234375
+      Distance: 104.30020141601562
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -800,17 +769,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -18.157011032104492
-        Y: 53.27650833129883
-        Z: -11.287820816040039
+        X: 5.52754020690918
+        Y: 12.177118301391602
+        Z: -21.782175064086914
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.17979639768600464
+      Pitch: 1.5697963237762451
       Target Frame: base_link
-      Yaw: 5.08507776260376
+      Yaw: 1.6050773859024048
     Saved: ~
 Window Geometry:
   Displays:
@@ -826,5 +795,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1393
-  X: 2036
-  Y: 48
+  X: 2148
+  Y: 87

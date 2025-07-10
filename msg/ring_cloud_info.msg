@@ -46,6 +46,12 @@ sensor_msgs/PointCloud2 cloud_deskewed  # 经过去畸变处理的原始点云
 sensor_msgs/PointCloud2 cloud_corner    # 提取的角点特征点云
 sensor_msgs/PointCloud2 cloud_surface   # 提取的平面特征点云
 
+# 3rd party messages
+sensor_msgs/PointCloud2 key_frame_cloud
+sensor_msgs/PointCloud2 key_frame_color
+sensor_msgs/PointCloud2 key_frame_poses
+sensor_msgs/PointCloud2 key_frame_map
+
 # ring问题修正
 float32 startOrientation
 float32 endOrientation

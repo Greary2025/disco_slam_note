@@ -256,6 +256,9 @@ public:
     // 最后一帧下采样平面特征点云数量
     int laserCloudSurfLastDSNum = 0;
 
+    // ring问题修正
+    double timeStart ;
+
     // 标志位，指示是否有回环被闭合
     bool aLoopIsClosed = false;
     // 回环索引容器，键为新关键帧索引，值为旧关键帧索引
@@ -320,10 +323,13 @@ public:
         //for
         //        pubCloudInfoWithPose        = nh.advertise<disco_slam::cloud_info> (robot_id + "/disco_slam/mapping/cloud_info", 1);
         //        pubCloudInfoWithPose        = nh.advertise<disco_slam::ring_cloud_info> (robot_id + "/disco_slam/mapping/cloud_info", 1);
+        
+        // 多机器人添加
         // 初始化 ROS 发布者，用于发布全局特征点云
         pubFeatureCloud = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/feature_cloud_global", 1);
         // 初始化 ROS 订阅者，订阅全局回环信息，并指定回调函数
         subGlobalLoop = nh.subscribe<disco_slam::context_info>(robot_id + "/context/loop_info", 100, &mapOptimization::contextLoopInfoHandler, this, ros::TransportHints().tcpNoDelay());
+        // 多机器人添加end
 
         // 初始化 ROS 订阅者，订阅激光点云信息，并指定回调函数
         // subCloud = nh.subscribe<disco_slam::cloud_info>(robot_id + "/disco_slam/feature/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
@@ -347,8 +353,8 @@ public:
         // 初始化 ROS 发布者，用于发布原始注册后的点云
         pubCloudRegisteredRaw = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/cloud_registered_raw", 1);
 
-        // 初始化 ROS 发布者，用于多机器人场景下发布激光点云信息
-        // pubLaserCloudInfo = nh.advertise<disco_slam::cloud_info> (robot_id + "/disco_slam/mapping/cloud_info", 1);
+        // 初始化 ROS 发布者，用于多机器人场景下发布激光点云信息(多机器人修改)
+        // pubSLAMInfo           = nh.advertise<lio_sam::cloud_info>("lio_sam/mapping/slam_info", 1);
         pubLaserCloudInfo = nh.advertise<disco_slam::ring_cloud_info> (robot_id + "/disco_slam/mapping/cloud_info", 1);
 
         // 设置角点特征点云体素滤波器的叶子大小
@@ -395,10 +401,12 @@ public:
         // 为来自里程计优化的下采样平面特征点云分配内存
         laserCloudSurfLastDS.reset(new pcl::PointCloud<PointType>()); 
 
+        //多机器人修改
         // 为最后一帧角点特征点云分配内存
         laserCloudCornerLastFeature.reset(new pcl::PointCloud<PointType>());
         // 为最后一帧平面特征点云分配内存
         laserCloudSurfLastFeature.reset(new pcl::PointCloud<PointType>());
+        //多机器人修改end
 
         // 为待优化的点云分配内存
         laserCloudOri.reset(new pcl::PointCloud<PointType>());
@@ -447,14 +455,14 @@ public:
     }
 
     /**
-     * @brief 处理全局回环信息的回调函数，根据接收到的上下文信息添加回环约束并更新优化结果。
+     * @brief 处理全局（机器人间）回环信息的回调函数，根据接收到的上下文信息添加回环约束并更新优化结果。
      * 
      * 该函数会检查接收到的消息中的机器人 ID 是否与当前机器人 ID 匹配，
      * 若匹配则提取回环的起始和结束索引、回环位姿和噪声信息，
      * 并将回环约束添加到 GTSAM 因子图中，然后更新 ISAM2 优化器，
      * 最后调用 `correctPoses` 和 `publishFrames` 函数进行位姿校正和帧发布。
      * 
-     * @param msgIn 接收到的全局回环上下文信息的常量指针。
+     * @param msgIn 接收到的全局回环上下文信息的常量指针。(机器人之间添加)
      */
     void contextLoopInfoHandler(const disco_slam::context_infoConstPtr& msgIn){
         // 注释掉的代码，原本用于直接返回，不处理全局回环信息
@@ -739,7 +747,7 @@ public:
     **************************************************************************************************/
 
     /**
-     * @brief 可视化全局地图的线程函数，负责定期可视化全局地图，并在需要时将地图保存为 PCD 文件。
+     * @brief 可视化全局地图（就是保存地图）的线程函数，负责定期可视化全局地图，并在需要时将地图保存为 PCD 文件。
      * 
      * 该线程会以固定频率调用 `publishGlobalMap` 函数来可视化全局地图。当 `savePCD` 标志为 `true` 时，
      * 线程会将全局地图的相关信息保存为 PCD 文件，包括关键帧位姿、变换信息、角点特征点云、平面特征点云和全局点云地图。
@@ -878,6 +886,12 @@ public:
         downSizeFilterGlobalMapKeyPoses.setInputCloud(globalMapKeyPoses);
         // 执行下采样操作，结果存储在 globalMapKeyPosesDS 中
         downSizeFilterGlobalMapKeyPoses.filter(*globalMapKeyPosesDS);
+
+        for(auto& pt : globalMapKeyPosesDS->points)
+        {
+            kdtreeGlobalMap->nearestKSearch(pt, 1, pointSearchIndGlobalMap, pointSearchSqDisGlobalMap);
+            pt.intensity = cloudKeyPoses3D->points[pointSearchIndGlobalMap[0]].intensity;
+        }
 
         // 提取可视化并下采样后的关键帧
         for (int i = 0; i < (int)globalMapKeyPosesDS->size(); ++i){
@@ -1476,6 +1490,13 @@ public:
         downSizeFilterSurroundingKeyPoses.setInputCloud(surroundingKeyPoses);
         downSizeFilterSurroundingKeyPoses.filter(*surroundingKeyPosesDS);
 
+        // 对下采样后的周围关键帧位姿进行再次搜索，确保每个关键帧都有最近的匹配
+        for(auto& pt : surroundingKeyPosesDS->points)
+        {
+            kdtreeSurroundingKeyPoses->nearestKSearch(pt, 1, pointSearchInd, pointSearchSqDis);
+            pt.intensity = cloudKeyPoses3D->points[pointSearchInd[0]].intensity;
+        }
+
         // also extract some latest key frames in case the robot rotates in one position
         // 获取关键帧位姿的总数
         int numPoses = cloudKeyPoses3D->size();
@@ -1589,18 +1610,18 @@ public:
     {
         // 处理角点特征
         laserCloudCornerLastDS->clear();      // 清空下采样后的角点点云容器
-        laserCloudCornerLastFeature->clear(); // 清空角点特征点云容器
+        laserCloudCornerLastFeature->clear(); // 清空角点特征点云容器（多）
         downSizeFilterCorner.setInputCloud(laserCloudCornerLast);  // 设置体素滤波器的输入为原始角点点云
         downSizeFilterCorner.filter(*laserCloudCornerLastDS);      // 执行下采样操作
-        pcl::copyPointCloud(*laserCloudCornerLast,  *laserCloudCornerLastFeature);  // 保存原始角点点云的副本
+        pcl::copyPointCloud(*laserCloudCornerLast,  *laserCloudCornerLastFeature);  // 保存原始角点点云的副本（多）
         laserCloudCornerLastDSNum = laserCloudCornerLastDS->size();  // 记录下采样后的角点点云大小
 
         // 处理平面点特征
         laserCloudSurfLastDS->clear();      // 清空下采样后的平面点点云容器
-        laserCloudSurfLastFeature->clear(); // 清空平面点特征点云容器
+        laserCloudSurfLastFeature->clear(); // 清空平面点特征点云容器（多）
         downSizeFilterSurf.setInputCloud(laserCloudSurfLast);  // 设置体素滤波器的输入为原始平面点点云
         downSizeFilterSurf.filter(*laserCloudSurfLastDS);      // 执行下采样操作
-        pcl::copyPointCloud(*laserCloudSurfLast,  *laserCloudSurfLastFeature);  // 保存原始平面点点云的副本
+        pcl::copyPointCloud(*laserCloudSurfLast,  *laserCloudSurfLastFeature);  // 保存原始平面点点云的副本（多）
         laserCloudSurfLastDSNum = laserCloudSurfLastDS->size();  // 记录下采样后的平面点点云大小
     }
 
@@ -1859,8 +1880,8 @@ public:
                     float pd2 = pa * pointSel.x + pb * pointSel.y + pc * pointSel.z + pd;
 
                     // 计算权重系数
-                    float s = 1 - 0.9 * fabs(pd2) / sqrt(sqrt(pointSel.x * pointSel.x
-                            + pointSel.y * pointSel.y + pointSel.z * pointSel.z));
+                    float s = 1 - 0.9 * fabs(pd2) / sqrt(sqrt(pointOri.x * pointOri.x
+                            + pointOri.y * pointOri.y + pointOri.z * pointOri.z));
 
                     // 保存特征匹配的结果
                     coeff.x = s * pa;

@@ -105,6 +105,8 @@ private:
     double timeScanEnd;  // 当前扫描结束时间
     std_msgs::Header cloudHeader;  // 点云头信息
 
+    vector<int> columnIdnCountVec;  // 列索引和点数量向量
+
 public:
     // 构造函数，初始化ROS订阅器和发布器
     ImageProjection():
@@ -207,7 +209,7 @@ public:
             imuRotZ[i] = 0;         // 清空Z轴旋转
         }
 
-        // columnIdnCountVec.assign(N_SCAN, 0);
+        columnIdnCountVec.assign(N_SCAN, 0);
     }
 
     ~ImageProjection(){}
@@ -733,12 +735,13 @@ public:
             if (rowIdn % downsampleRate != 0)
                 continue;
 
+            int columnIdn = -1;
             // 计算水平角度
             float horizonAngle = atan2(thisPoint.x, thisPoint.y) * 180 / M_PI;
 
             // 计算列ID
             static float ang_res_x = 360.0/float(Horizon_SCAN);
-            int columnIdn = -round((horizonAngle-90.0)/ang_res_x) + Horizon_SCAN/2;
+            columnIdn = -round((horizonAngle-90.0)/ang_res_x) + Horizon_SCAN/2;
             if (columnIdn >= Horizon_SCAN)
                 columnIdn -= Horizon_SCAN;
 

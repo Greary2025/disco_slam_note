@@ -313,12 +313,12 @@ public:
                 // 收集当前段的平面点（问题：extractedCloud并不是平面点，是除角点外的全部点云）
                 // 平面点云过多的问题：如果限制个数，导致快速达到平面点云上限，从而消失大量点云
                 // 解决方法：平面点云提取没有上限，然后再降采样，这样可以保证平面点云的数量不会过多
-                // for (int k = sp; k <= ep; k++)
-                // {
-                //     if (cloudLabel[k] <= 0){  // 非角点(平面点或未分类点)
-                //         surfaceCloudScan->push_back(extractedCloud->points[k]);
-                //     }
-                // }
+                for (int k = sp; k <= ep; k++)
+                {
+                    if (cloudLabel[k] <= 0){  // 非角点(平面点或未分类点)
+                        surfaceCloudScan->push_back(extractedCloud->points[k]);
+                    }
+                }
             }
 
             // 对平面点进行降采样

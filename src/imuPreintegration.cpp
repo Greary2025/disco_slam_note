@@ -28,7 +28,7 @@ class TransformFusion : public ParamServer
 public:
     std::mutex mtx; // 互斥锁
 
-    // 融合话题
+    // 融合话题（多机器人）
     std::string _fusion_topic;
     ros::Subscriber subFusionTrans;
     double fusionTrans[6]; // x,y,z,roll,pitch,yaw
@@ -52,6 +52,7 @@ public:
 
     double lidarOdomTime = -1;
     deque<nav_msgs::Odometry> imuOdomQueue;
+    deque<nav_msgs::Odometry> lidarOdomQueue;
 
     // 构造函数
     TransformFusion()
@@ -70,11 +71,11 @@ public:
             }
         }
 
-        // 初始化融合变换
+        // 初始化融合变换（多机器人）
         fusionTrans[0] = 0; fusionTrans[1] = 0; fusionTrans[2] = 0; fusionTrans[3] = 0; fusionTrans[4] = 0; fusionTrans[5] = 0;
         nh.getParam("/mapfusion/interRobot/sc_topic", _fusion_topic);
         
-        // 订阅融合变换、激光雷达里程计和IMU里程计
+        // 订阅融合变换（多机器人）、激光雷达里程计和IMU里程计
         subFusionTrans   = nh.subscribe<nav_msgs::Odometry>(robot_id + "/" + _fusion_topic + "/trans_map", 2000,&TransformFusion::FusionTransHandler, this, ros::TransportHints().tcpNoDelay());
         subLaserOdometry = nh.subscribe<nav_msgs::Odometry>(robot_id + "/disco_slam/mapping/odometry", 5, &TransformFusion::lidarOdometryHandler, this, ros::TransportHints().tcpNoDelay());
         subImuOdometry   = nh.subscribe<nav_msgs::Odometry>(robot_id + "/" + odomTopic+"_incremental",   2000, &TransformFusion::imuOdometryHandler,   this, ros::TransportHints().tcpNoDelay());
@@ -97,7 +98,7 @@ public:
         return pcl::getTransformation(x, y, z, roll, pitch, yaw);
     }
 
-    // 融合变换处理函数
+    // 融合变换处理函数（多机器人）
     void FusionTransHandler(const nav_msgs::Odometry::ConstPtr& odomMsg) {
         // 接收里程计
         fusionTrans[0] = odomMsg->pose.pose.position.x;
@@ -126,8 +127,14 @@ public:
     void imuOdometryHandler(const nav_msgs::Odometry::ConstPtr& odomMsg)
     {
         // 发布地图到里程计的变换（不应该是静态TF，如果是静态的，它们将不会改变！）
+        // static tf::TransformBroadcaster tfMap2Odom;
         tf::TransformBroadcaster tfMap2Odom;
-        tf::Transform map_to_odom = tf::Transform(tf::createQuaternionFromRPY(fusionTrans[3], fusionTrans[4], fusionTrans[5]), tf::Vector3(fusionTrans[0], fusionTrans[1], fusionTrans[2]));
+        // static tf::Transform map_to_odom = tf::Transform(tf::createQuaternionFromRPY(0, 0, 0), 
+                                                                // tf::Vector3(0, 0, 0));
+        tf::Transform map_to_odom = tf::Transform(tf::createQuaternionFromRPY(fusionTrans[3], 
+                                                    fusionTrans[4], fusionTrans[5]), 
+                                                    tf::Vector3(fusionTrans[0], fusionTrans[1], 
+                                                        fusionTrans[2]));
         tfMap2Odom.sendTransform(tf::StampedTransform(map_to_odom, odomMsg->header.stamp, mapFrame, robot_id + "/" + odometryFrame));
 
         std::lock_guard<std::mutex> lock(mtx);
@@ -180,7 +187,8 @@ public:
             pose_stamped.header.frame_id = robot_id + "/" + odometryFrame;
             pose_stamped.pose = laserOdometry.pose.pose;
             imuPath.poses.push_back(pose_stamped);
-            while(!imuPath.poses.empty() && imuPath.poses.front().header.stamp.toSec() < lidarOdomTime - 0.1)
+            while(!imuPath.poses.empty() && imuPath.poses.front().header.stamp.toSec() < lidarOdomTime - 1.0)
+            // while(!imuPath.poses.empty() && imuPath.poses.front().header.stamp.toSec() < lidarOdomTime - 0.1)
                 imuPath.poses.erase(imuPath.poses.begin());
             if (pubImuPath.getNumSubscribers() != 0)
             {
@@ -493,7 +501,9 @@ public:
         // 将当前速度转换为Eigen向量格式
         Eigen::Vector3f vel(velCur.x(), velCur.y(), velCur.z());
         // 检查速度是否过大（超过30m/s）
-        if (vel.norm() > 30)
+        // if (vel.norm() > 30)
+        // 适应低频IMU
+        if (vel.norm() > 50)
         {
             ROS_WARN("Large velocity, reset IMU-preintegration!"); // 警告：速度过大，重置IMU预积分
             return true; // 返回故障标志
