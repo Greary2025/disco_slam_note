@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- PCD保存节点启动文件 -->
+    
+    <!-- 参数定义 -->
+    <arg name="save_directory" default="$(env HOME)/saved_pcds" doc="PCD文件保存目录"/>
+    <!-- <arg name="save_directory" default="/mnt/c/Users/Greary/Documents/Examdata/saved_pcds" doc="PCD文件保存目录"/> -->
+    <!-- <arg name="topic_name" default="/points_raw" doc="要订阅的点云话题名称"/> -->
+    <arg name="topic_name" default="disco_double/mapping/map_global" doc="要订阅的点云话题名称"/>
+    <arg name="robot_id" default="xianfeng" doc="机器人ID，用于多机器人场景"/>
+    
+    <!-- 启动PCD保存节点 -->
+    <node name="save_pcd_node" pkg="disco_double" type="disco_double_save_pcd" output="screen">
+        <!-- 设置保存目录 -->
+        <param name="save_directory" value="$(arg save_directory)"/>
+        
+        <!-- 设置订阅的话题名称 -->
+        <!-- 可以根据需要修改为不同的话题，例如: -->
+        <!-- /points_raw - 原始点云 -->
+        <!-- /jackal0/points_raw - 特定机器人的原始点云 -->
+        <!-- /disco_double/deskew/cloud_deskewed - 去畸变后的点云 -->
+        <param name="topic_name" value="/$(arg robot_id)/$(arg topic_name)"/>
+        
+        <!-- 重映射话题（可选，如果需要的话） -->
+        <!-- <remap from="/points_raw" to="/$(arg robot_id)/points_raw"/> -->
+    </node>
+    
+    <!-- 打印启动信息 -->
+    <node name="save_pcd_info" pkg="rostopic" type="rostopic" 
+          args="echo -n 1 /$(arg robot_id)/$(arg topic_name)" output="screen" 
+          launch-prefix="echo 'Waiting for point cloud data on topic: /$(arg robot_id)/$(arg topic_name)'"/>
+          
+</launch>

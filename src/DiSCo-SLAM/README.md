@@ -40,13 +40,13 @@ for outlier detection.
 
 To run the KITTI08 dataset, change line 9 & 10 in launch/run.launch from
   ```
-<rosparam file="$(find disco_slam)/config/params.yaml" command="load" />
-<rosparam file="$(find disco_slam)/src/DiSCo-SLAM/config/mapfusion.yaml" command="load"/>
+<rosparam file="$(find disco_double)/config/params.yaml" command="load" />
+<rosparam file="$(find disco_double)/src/DiSCo-SLAM/config/mapfusion.yaml" command="load"/>
   ```
 to
   ```  
-<rosparam file="$(find disco_slam)/config/params_k.yaml" command="load" />
-<rosparam file="$(find disco_slam)/src/DiSCo-SLAM/config/mapfusion_k.yaml" command="load"/>
+<rosparam file="$(find disco_double)/config/params_k.yaml" command="load" />
+<rosparam file="$(find disco_double)/src/DiSCo-SLAM/config/mapfusion_k.yaml" command="load"/>
   ```
     
 ## How to use
@@ -59,7 +59,7 @@ catkin_make
 ```
 
 ```
-roslaunch disco_slam run.launch
+roslaunch disco_double run.launch
 rosbag play your_bag_name.bag
 ```
 

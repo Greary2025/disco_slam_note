@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # 设置CMake最低版本要求
 cmake_minimum_required(VERSION 3.5)
 # 定义项目名称
-project(disco_slam)
+project(disco_double)
 
 # 设置构建类型为Release
 set(CMAKE_BUILD_TYPE "Release")
@@ -173,6 +173,15 @@ target_link_libraries(${PROJECT_NAME}_mapFusion
                       ${catkin_LIBRARIES}
                       ${PCL_LIBRARIES} libnabo::nabo
                       gtsam fast_max-clique_finder scan_context)
+
+# PCD保存节点
+add_executable(${PROJECT_NAME}_save_pcd src/save_pcd.cpp)
+add_dependencies(${PROJECT_NAME}_save_pcd 
+                ${catkin_EXPORTED_TARGETS} 
+                ${PROJECT_NAME}_generate_messages_cpp)
+target_link_libraries(${PROJECT_NAME}_save_pcd 
+                      ${catkin_LIBRARIES} 
+                      ${PCL_LIBRARIES})
 
 # 安装Python脚本(已注释)
 #catkin_install_python(PROGRAMS scripts/listener.py

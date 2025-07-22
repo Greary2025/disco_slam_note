@@ -1,6 +1,6 @@
 #include "utility.h"
-// #include "disco_slam/cloud_info.h"
-#include "disco_slam/ring_cloud_info.h"
+// #include "disco_double/cloud_info.h"
+#include "disco_double/ring_cloud_info.h"
 
 // 定义点云平滑度结构体，用于存储曲率值和索引
 struct smoothness_t{ 
@@ -39,8 +39,8 @@ public:
 
     pcl::VoxelGrid<PointType> downSizeFilter;  // 降采样滤波器
 
-    // disco_slam::cloud_info cloudInfo;  // 点云信息
-    disco_slam::ring_cloud_info cloudInfo;  // 点云信息
+    // disco_double::cloud_info cloudInfo;  // 点云信息
+    disco_double::ring_cloud_info cloudInfo;  // 点云信息
     std_msgs::Header cloudHeader;      // 点云头信息
 
     // 特征提取相关变量
@@ -55,14 +55,14 @@ public:
     FeatureExtraction()
     {
         // 订阅去畸变后的点云信息
-        // subLaserCloudInfo = nh.subscribe<disco_slam::cloud_info>(robot_id + "/disco_slam/deskew/cloud_info", 1, &FeatureExtraction::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
-        subLaserCloudInfo = nh.subscribe<disco_slam::ring_cloud_info>(robot_id + "/disco_slam/deskew/cloud_info", 1, &FeatureExtraction::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
+        // subLaserCloudInfo = nh.subscribe<disco_double::cloud_info>(robot_id + "/disco_double/deskew/cloud_info", 1, &FeatureExtraction::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
+        subLaserCloudInfo = nh.subscribe<disco_double::ring_cloud_info>(robot_id + "/disco_double/deskew/cloud_info", 1, &FeatureExtraction::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
         // 初始化发布器
-        // pubLaserCloudInfo = nh.advertise<disco_slam::cloud_info> (robot_id + "/disco_slam/feature/cloud_info", 1);
-        pubLaserCloudInfo = nh.advertise<disco_slam::ring_cloud_info> (robot_id + "/disco_slam/feature/cloud_info", 1);
-        pubCornerPoints = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/feature/cloud_corner", 1);
-        pubSurfacePoints = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/feature/cloud_surface", 1);
+        // pubLaserCloudInfo = nh.advertise<disco_double::cloud_info> (robot_id + "/disco_double/feature/cloud_info", 1);
+        pubLaserCloudInfo = nh.advertise<disco_double::ring_cloud_info> (robot_id + "/disco_double/feature/cloud_info", 1);
+        pubCornerPoints = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_double/feature/cloud_corner", 1);
+        pubSurfacePoints = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_double/feature/cloud_surface", 1);
         
         initializationValue();  // 初始化变量
     }
@@ -93,8 +93,8 @@ public:
      * @param msgIn 输入的点云信息消息
      */
     // 重要线程：处理点云信息，提取特征并发布
-    // void laserCloudInfoHandler(const disco_slam::cloud_infoConstPtr& msgIn)
-    void laserCloudInfoHandler(const disco_slam::ring_cloud_infoConstPtr& msgIn)
+    // void laserCloudInfoHandler(const disco_double::cloud_infoConstPtr& msgIn)
+    void laserCloudInfoHandler(const disco_double::ring_cloud_infoConstPtr& msgIn)
     {
         cloudInfo = *msgIn;  // 保存点云信息
         cloudHeader = msgIn->header;  // 保存头信息
@@ -362,7 +362,7 @@ public:
  */
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "disco_slam");  // 初始化ROS节点
+    ros::init(argc, argv, "disco_double");  // 初始化ROS节点
 
     FeatureExtraction FE;  // 创建特征提取对象
 

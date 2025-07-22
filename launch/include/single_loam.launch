@@ -1,7 +1,7 @@
 <launch>
     <!-- 定义参数 -->
     <arg name="no"/>                                <!-- 节点编号参数 -->
-    <arg name="project" default="disco_slam"/>      <!-- 项目名称，默认为disco_slam -->
+    <arg name="project" default="disco_double"/>      <!-- 项目名称，默认为disco_double -->
     <arg name="robot"   default="jackal0"/>         <!-- 主机器人ID，默认为jackal0 -->
     <arg name="id1"     default="jackal1"/>         <!-- 协作机器人1的ID，默认为jackal1 -->
     <arg name="id2"     default="jackal2"/>         <!-- 协作机器人2的ID，默认为jackal2 -->

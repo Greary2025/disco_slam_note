@@ -6,8 +6,8 @@
 /jackal0/context/cloud
 /jackal0/context/loop_info
 /jackal0/context/trans_map
-/jackal0/disco_slam/mapping/cloud_info
-/jackal0/disco_slam/signal
+/jackal0/disco_double/mapping/cloud_info
+/jackal0/disco_double/signal
 /jackal0/gps/fix
 /jackal0/gps/vel
 /jackal0/imu_correct
@@ -17,8 +17,8 @@
 /jackal1/context/cloud
 /jackal1/context/loop_info
 /jackal1/context/trans_map
-/jackal1/disco_slam/mapping/cloud_info
-/jackal1/disco_slam/signal
+/jackal1/disco_double/mapping/cloud_info
+/jackal1/disco_double/signal
 /jackal1/gps/fix
 /jackal1/gps/vel
 /jackal1/imu_correct
@@ -28,8 +28,8 @@
 /jackal2/context/cloud
 /jackal2/context/loop_info
 /jackal2/context/trans_map
-/jackal2/disco_slam/mapping/cloud_info
-/jackal2/disco_slam/signal
+/jackal2/disco_double/mapping/cloud_info
+/jackal2/disco_double/signal
 
 /rosout
 /rosout_agg

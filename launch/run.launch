@@ -8,20 +8,20 @@
 
     <!-- 定义参数 -->
     <arg name="no"      default="1"/>  <!-- 编号参数 -->
-    <arg name="project" default="disco_slam"/>  <!-- 项目名称 -->
+    <arg name="project" default="disco_double"/>  <!-- 项目名称 -->
     <arg name="robot0"	default="jackal0"/>  <!-- 机器人0名称 -->
     <arg name="robot1"	default="jackal1"/>  <!-- 机器人1名称 -->
     <arg name="robot2"	default="jackal2"/>  <!-- 机器人2名称 -->
 
     <!-- 加载参数文件 -->
     <!-- PARK -->
-    <!-- <rosparam file="$(find disco_slam)/config/params.yaml" command="load" /> -->
-    <!-- <rosparam file="$(find disco_slam)/src/DiSCo-SLAM/config/mapfusion.yaml" command="load" /> -->
+    <!-- <rosparam file="$(find disco_double)/config/params.yaml" command="load" /> -->
+    <!-- <rosparam file="$(find disco_double)/src/DiSCo-SLAM/config/mapfusion.yaml" command="load" /> -->
     <!-- KITTI-08 -->
-    <rosparam file="$(find disco_slam)/config/params_k.yaml" command="load" />
-    <rosparam file="$(find disco_slam)/src/DiSCo-SLAM/config/mapfusion_k.yaml" command="load"/>
+    <rosparam file="$(find disco_double)/config/params_k.yaml" command="load" />
+    <rosparam file="$(find disco_double)/src/DiSCo-SLAM/config/mapfusion_k.yaml" command="load"/>
     <!-- 启动机器人0的LOAM模块 -->
-    <include file="$(find disco_slam)/launch/include/module_loam.launch" >
+    <include file="$(find disco_double)/launch/include/module_loam.launch" >
         <arg name="robot" value="$(arg robot0)"/>
         <arg name="id1" value="$(arg robot1)"/>
         <arg name="id2" value="$(arg robot2)"/>
@@ -29,7 +29,7 @@
     </include>
 
     <!-- 启动机器人1的LOAM模块 -->
-    <include file="$(find disco_slam)/launch/include/module_loam.launch" >
+    <include file="$(find disco_double)/launch/include/module_loam.launch" >
         <arg name="robot" value="$(arg robot1)"/>
         <arg name="id1" value="$(arg robot0)"/>
         <arg name="id2" value="$(arg robot2)"/>
@@ -37,7 +37,7 @@
     </include>
 
     <!-- 启动机器人2的LOAM模块 -->
-    <include file="$(find disco_slam)/launch/include/module_loam.launch" >
+    <include file="$(find disco_double)/launch/include/module_loam.launch" >
         <arg name="robot" value="$(arg robot2)"/>
         <arg name="id1" value="$(arg robot0)"/>
         <arg name="id2" value="$(arg robot1)"/>
@@ -45,13 +45,13 @@
       </include>
 
     <!-- 机器人状态TF转换 (已注释) -->
-    <!-- <include file="$(find disco_slam)/launch/include/module_robot_state_publisher.launch" /> -->
+    <!-- <include file="$(find disco_double)/launch/include/module_robot_state_publisher.launch" /> -->
 
     <!-- 运行导航卫星模块 (已注释) -->
-    <!-- <include file="$(find disco_slam)/launch/include/module_navsat.launch" /> -->
+    <!-- <include file="$(find disco_double)/launch/include/module_navsat.launch" /> -->
 
     <!-- 运行Rviz可视化工具 -->
-    <include file="$(find disco_slam)/launch/include/module_rviz.launch" />
+    <include file="$(find disco_double)/launch/include/module_rviz.launch" />
 
     <!-- 运行通信模拟器 (已注释) -->
     <!-- <node pkg="$(arg project)" name= "$(arg project)_listener" type="listener.py" output="screen"/> -->

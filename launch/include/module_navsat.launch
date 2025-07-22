@@ -1,9 +1,9 @@
 <launch>
 
-    <arg name="project" default="disco_slam"/>      <!-- 项目名称，默认为disco_slam -->
+    <arg name="project" default="disco_double"/>      <!-- 项目名称，默认为disco_double -->
 
     <!-- 设置ROS日志级别配置文件，只显示错误级别的日志 -->
-    <env name="ROSCONSOLE_CONFIG_FILE" value="$(find disco_slam)/launch/include/rosconsole/rosconsole_error.conf"/>
+    <env name="ROSCONSOLE_CONFIG_FILE" value="$(find disco_double)/launch/include/rosconsole/rosconsole_error.conf"/>
     
     <!-- EKF GPS节点：使用扩展卡尔曼滤波器融合GPS和其他传感器数据 -->
     <node pkg="robot_localization" type="ekf_localization_node" name="ekf_gps" respawn="true">

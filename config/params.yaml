@@ -1,4 +1,4 @@
-disco_slam:
+disco_double:
 # 必须有 imu 话题
   # 话题
   pointCloudTopic: "points_raw"               # 点云数据

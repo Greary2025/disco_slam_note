@@ -77,12 +77,12 @@ public:
         
         // 订阅融合变换（多机器人）、激光雷达里程计和IMU里程计
         subFusionTrans   = nh.subscribe<nav_msgs::Odometry>(robot_id + "/" + _fusion_topic + "/trans_map", 2000,&TransformFusion::FusionTransHandler, this, ros::TransportHints().tcpNoDelay());
-        subLaserOdometry = nh.subscribe<nav_msgs::Odometry>(robot_id + "/disco_slam/mapping/odometry", 5, &TransformFusion::lidarOdometryHandler, this, ros::TransportHints().tcpNoDelay());
+        subLaserOdometry = nh.subscribe<nav_msgs::Odometry>(robot_id + "/disco_double/mapping/odometry", 5, &TransformFusion::lidarOdometryHandler, this, ros::TransportHints().tcpNoDelay());
         subImuOdometry   = nh.subscribe<nav_msgs::Odometry>(robot_id + "/" + odomTopic+"_incremental",   2000, &TransformFusion::imuOdometryHandler,   this, ros::TransportHints().tcpNoDelay());
 
         // 发布IMU里程计和路径
         pubImuOdometry   = nh.advertise<nav_msgs::Odometry>(robot_id + "/" + odomTopic, 2000);
-        pubImuPath       = nh.advertise<nav_msgs::Path>    (robot_id + "/disco_slam/imu/path", 1);
+        pubImuPath       = nh.advertise<nav_msgs::Path>    (robot_id + "/disco_double/imu/path", 1);
     }
 
     // 将里程计消息转换为仿射变换
@@ -187,6 +187,7 @@ public:
             pose_stamped.header.frame_id = robot_id + "/" + odometryFrame;
             pose_stamped.pose = laserOdometry.pose.pose;
             imuPath.poses.push_back(pose_stamped);
+            // 修改里程计时间
             while(!imuPath.poses.empty() && imuPath.poses.front().header.stamp.toSec() < lidarOdomTime - 1.0)
             // while(!imuPath.poses.empty() && imuPath.poses.front().header.stamp.toSec() < lidarOdomTime - 0.1)
                 imuPath.poses.erase(imuPath.poses.begin());
@@ -261,7 +262,7 @@ public:
     {
         // 订阅IMU和里程计
         subImu      = nh.subscribe<sensor_msgs::Imu>  (robot_id + "/" + imuTopic,                   2000, &IMUPreintegration::imuHandler,      this, ros::TransportHints().tcpNoDelay());
-        subOdometry = nh.subscribe<nav_msgs::Odometry>(robot_id + "/disco_slam/mapping/odometry_incremental", 5,    &IMUPreintegration::odometryHandler, this, ros::TransportHints().tcpNoDelay());
+        subOdometry = nh.subscribe<nav_msgs::Odometry>(robot_id + "/disco_double/mapping/odometry_incremental", 5,    &IMUPreintegration::odometryHandler, this, ros::TransportHints().tcpNoDelay());
 
         // 发布IMU里程计
         pubImuOdometry = nh.advertise<nav_msgs::Odometry> (robot_id + "/" + odomTopic+"_incremental", 2000);
@@ -592,7 +593,7 @@ public:
 int main(int argc, char** argv)
 {
     // 初始化ROS节点
-    ros::init(argc, argv, "disco_slam");
+    ros::init(argc, argv, "disco_double");
     
     // 创建IMU预积分对象
     IMUPreintegration ImuP;

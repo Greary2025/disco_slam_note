@@ -1,10 +1,10 @@
 // 包含自定义工具头文件，该文件可能包含一些通用的工具函数、类型定义等
 #include "utility.h"
-// 包含 disco_slam 包中的 cloud_info 消息类型头文件，用于处理点云信息
-// #include "disco_slam/cloud_info.h"
-#include "disco_slam/ring_cloud_info.h"
-// 包含 disco_slam 包中的 context_info 消息类型头文件，用于处理上下文信息
-#include "disco_slam/context_info.h"
+// 包含 disco_double 包中的 cloud_info 消息类型头文件，用于处理点云信息
+// #include "disco_double/cloud_info.h"
+#include "disco_double/ring_cloud_info.h"
+// 包含 disco_double 包中的 context_info 消息类型头文件，用于处理上下文信息
+#include "disco_double/context_info.h"
 
 // 包含 gtsam 库中旋转矩阵相关的头文件，用于处理三维旋转
 #include <gtsam/geometry/Rot3.h>
@@ -35,6 +35,11 @@
 
 // 包含 gtsam 库中数据集相关的头文件，可能用于加载和处理预定义的数据集
 #include <gtsam/slam/dataset.h>
+
+#include <fstream>
+#include <iostream>
+#include <string>
+
 
 // 使用 gtsam 命名空间，方便直接使用 gtsam 库中的类和函数
 using namespace gtsam;
@@ -80,6 +85,22 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (PointXYZIRPYT,
 
 // 定义 PointTypePose 作为 PointXYZIRPYT 的别名
 typedef PointXYZIRPYT  PointTypePose;
+
+void saveToFile(const std::string& content, const std::string& filename) {
+    string dir = "/home/john/catkin_ws/src/disco_slam_note/results/";
+    try {
+        std::ofstream file(dir + filename);
+        if (file.is_open()) {
+            file << content << std::endl;
+            file.close();
+            // std::cout << "successed" << std::endl;
+        } else {
+            // std::cerr << "Failed to open file: " << filename << std::endl;
+        }
+    } catch (const std::exception& e) {
+        // std::cerr << "Error occurred: " << e.what() << std::endl;
+    }
+}
 
 /**
  * @brief 地图优化类，继承自 ParamServer，用于处理地图优化相关任务
@@ -133,8 +154,8 @@ public:
 
     // 发布到融合节点的 ROS 发布者（注释掉，暂未使用）
     // ros::Publisher pubCloudInfoWithPose;
-    // disco_slam::cloud_info cloudInfoWithPose;
-    // disco_slam::ring_cloud_info cloudInfoWithPose;
+    // disco_double::cloud_info cloudInfoWithPose;
+    // disco_double::ring_cloud_info cloudInfoWithPose;
     // std_msgs::Header cloudHeader;
     // ROS 订阅者，订阅全局回环信息
     ros::Subscriber subGlobalLoop;
@@ -155,8 +176,8 @@ public:
     // GPS 消息队列，存储接收到的 GPS 信息
     std::deque<nav_msgs::Odometry> gpsQueue;
     // 激光点云信息，包含点云特征和相关信息
-    // disco_slam::cloud_info cloudInfo;
-    disco_slam::ring_cloud_info cloudInfo;
+    // disco_double::cloud_info cloudInfo;
+    disco_double::ring_cloud_info cloudInfo;
 
     // 存储角点关键帧点云的向量
     vector<pcl::PointCloud<PointType>::Ptr> cornerCloudKeyFrames;
@@ -306,56 +327,56 @@ public:
         parameters.relinearizeSkip = 1;
         // 根据设置的参数创建 ISAM2 优化器实例
         isam = new ISAM2(parameters);
-
+        cout << "robot_id: " << robot_id << endl;
         // 初始化 ROS 发布者，用于发布关键位姿点云
-        pubKeyPoses                 = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/trajectory", 1);
+        pubKeyPoses                 = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_double/mapping/trajectory", 1);
         // 初始化 ROS 发布者，用于发布全局地图点云
-        pubLaserCloudSurround       = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/map_global", 1);
+        pubLaserCloudSurround       = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_double/mapping/map_global", 1);
         // 初始化 ROS 发布者，用于发布全局激光里程计信息
-        pubLaserOdometryGlobal      = nh.advertise<nav_msgs::Odometry> (robot_id + "/disco_slam/mapping/odometry", 1);
+        pubLaserOdometryGlobal      = nh.advertise<nav_msgs::Odometry> (robot_id + "/disco_double/mapping/odometry", 1);
         // 初始化 ROS 发布者，用于发布增量式激光里程计信息
-        pubLaserOdometryIncremental = nh.advertise<nav_msgs::Odometry> (robot_id + "/disco_slam/mapping/odometry_incremental", 1);
+        pubLaserOdometryIncremental = nh.advertise<nav_msgs::Odometry> (robot_id + "/disco_double/mapping/odometry_incremental", 1);
         // 初始化 ROS 发布者，用于发布全局路径信息
-        pubPath                     = nh.advertise<nav_msgs::Path>(robot_id + "/disco_slam/mapping/path", 1);
+        pubPath                     = nh.advertise<nav_msgs::Path>(robot_id + "/disco_double/mapping/path", 1);
 
         // 注释掉的代码，原本用于发布到融合节点的点云信息
         //for fusion node
         //for
-        //        pubCloudInfoWithPose        = nh.advertise<disco_slam::cloud_info> (robot_id + "/disco_slam/mapping/cloud_info", 1);
-        //        pubCloudInfoWithPose        = nh.advertise<disco_slam::ring_cloud_info> (robot_id + "/disco_slam/mapping/cloud_info", 1);
+        //        pubCloudInfoWithPose        = nh.advertise<disco_double::cloud_info> (robot_id + "/disco_double/mapping/cloud_info", 1);
+        //        pubCloudInfoWithPose        = nh.advertise<disco_double::ring_cloud_info> (robot_id + "/disco_double/mapping/cloud_info", 1);
         
         // 多机器人添加
         // 初始化 ROS 发布者，用于发布全局特征点云
-        pubFeatureCloud = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/feature_cloud_global", 1);
+        pubFeatureCloud = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_double/mapping/feature_cloud_global", 1);
         // 初始化 ROS 订阅者，订阅全局回环信息，并指定回调函数
-        subGlobalLoop = nh.subscribe<disco_slam::context_info>(robot_id + "/context/loop_info", 100, &mapOptimization::contextLoopInfoHandler, this, ros::TransportHints().tcpNoDelay());
+        subGlobalLoop = nh.subscribe<disco_double::context_info>(robot_id + "/context/loop_info", 100, &mapOptimization::contextLoopInfoHandler, this, ros::TransportHints().tcpNoDelay());
         // 多机器人添加end
 
         // 初始化 ROS 订阅者，订阅激光点云信息，并指定回调函数
-        // subCloud = nh.subscribe<disco_slam::cloud_info>(robot_id + "/disco_slam/feature/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
-        subCloud = nh.subscribe<disco_slam::ring_cloud_info>(robot_id + "/disco_slam/feature/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
+        // subCloud = nh.subscribe<disco_double::cloud_info>(robot_id + "/disco_double/feature/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
+        subCloud = nh.subscribe<disco_double::ring_cloud_info>(robot_id + "/disco_double/feature/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
         // 初始化 ROS 订阅者，订阅 GPS 信息，并指定回调函数
         subGPS   = nh.subscribe<nav_msgs::Odometry> (gpsTopic, 200, &mapOptimization::gpsHandler, this, ros::TransportHints().tcpNoDelay());
         // 初始化 ROS 订阅者，订阅回环检测信息，并指定回调函数
         subLoop  = nh.subscribe<std_msgs::Float64MultiArray>(robot_id + "/lio_loop/loop_closure_detection", 1, &mapOptimization::loopInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
         // 初始化 ROS 发布者，用于发布历史关键帧点云，用于回环检测
-        pubHistoryKeyFrames   = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/icp_loop_closure_history_cloud", 1);
+        pubHistoryKeyFrames   = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_double/mapping/icp_loop_closure_history_cloud", 1);
         // 初始化 ROS 发布者，用于发布经过 ICP 校正后的关键帧点云
-        pubIcpKeyFrames       = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/icp_loop_closure_corrected_cloud", 1);
+        pubIcpKeyFrames       = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_double/mapping/icp_loop_closure_corrected_cloud", 1);
         // 初始化 ROS 发布者，用于发布回环约束边的可视化标记
-        pubLoopConstraintEdge = nh.advertise<visualization_msgs::MarkerArray>(robot_id + "/disco_slam/mapping/loop_closure_constraints", 1);
+        pubLoopConstraintEdge = nh.advertise<visualization_msgs::MarkerArray>(robot_id + "/disco_double/mapping/loop_closure_constraints", 1);
 
         // 初始化 ROS 发布者，用于发布最近的关键帧点云
-        pubRecentKeyFrames    = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/map_local", 1);
+        pubRecentKeyFrames    = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_double/mapping/map_local", 1);
         // 初始化 ROS 发布者，用于发布最近的单个关键帧点云
-        pubRecentKeyFrame     = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/cloud_registered", 1);
+        pubRecentKeyFrame     = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_double/mapping/cloud_registered", 1);
         // 初始化 ROS 发布者，用于发布原始注册后的点云
-        pubCloudRegisteredRaw = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_slam/mapping/cloud_registered_raw", 1);
+        pubCloudRegisteredRaw = nh.advertise<sensor_msgs::PointCloud2>(robot_id + "/disco_double/mapping/cloud_registered_raw", 1);
 
         // 初始化 ROS 发布者，用于多机器人场景下发布激光点云信息(多机器人修改)
         // pubSLAMInfo           = nh.advertise<lio_sam::cloud_info>("lio_sam/mapping/slam_info", 1);
-        pubLaserCloudInfo = nh.advertise<disco_slam::ring_cloud_info> (robot_id + "/disco_slam/mapping/cloud_info", 1);
+        pubLaserCloudInfo = nh.advertise<disco_double::ring_cloud_info> (robot_id + "/disco_double/mapping/cloud_info", 1);
 
         // 设置角点特征点云体素滤波器的叶子大小
         downSizeFilterCorner.setLeafSize(mappingCornerLeafSize, mappingCornerLeafSize, mappingCornerLeafSize);
@@ -464,7 +485,7 @@ public:
      * 
      * @param msgIn 接收到的全局回环上下文信息的常量指针。(机器人之间添加)
      */
-    void contextLoopInfoHandler(const disco_slam::context_infoConstPtr& msgIn){
+    void contextLoopInfoHandler(const disco_double::context_infoConstPtr& msgIn){
         // 注释掉的代码，原本用于直接返回，不处理全局回环信息
         // close global loop by do nothing
         // return;
@@ -527,8 +548,8 @@ public:
      * 
      * @param msgIn 接收到的激光点云信息的常量指针。
      */
-    // void laserCloudInfoHandler(const disco_slam::cloud_infoConstPtr& msgIn)
-    void laserCloudInfoHandler(const disco_slam::ring_cloud_infoConstPtr& msgIn)
+    // void laserCloudInfoHandler(const disco_double::cloud_infoConstPtr& msgIn)
+    void laserCloudInfoHandler(const disco_double::ring_cloud_infoConstPtr& msgIn)
     {
         // 提取时间戳信息
         // 将消息头中的时间戳赋值给 timeLaserInfoStamp
@@ -2609,6 +2630,8 @@ public:
         cloudInfo.cloud_surface = publishCloud(&pubFeatureCloud,  laserCloudSurfLastFeature,  cloudInfo.header.stamp, robot_id + "/" + lidarFrame);
         // 发布激光雷达点云信息
         pubLaserCloudInfo.publish(cloudInfo);
+        // cout << robot_id + " cloudInfo " << cloudInfo.header << endl;
+        // saveToFile(cloudInfo, robot_id + "cloudInfo.txt");
     }
 
     /**
@@ -2882,8 +2905,8 @@ public:
  */
 int main(int argc, char** argv)
 {
-    // 初始化 ROS 节点，节点名为 "disco_slam"
-    ros::init(argc, argv, "disco_slam");
+    // 初始化 ROS 节点，节点名为 "disco_double"
+    ros::init(argc, argv, "disco_double");
 
     // 创建 mapOptimization 类的一个实例 MO
     mapOptimization MO;

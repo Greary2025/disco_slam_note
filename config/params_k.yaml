@@ -1,4 +1,4 @@
-disco_slam:
+disco_double:
 
   # 话题
   pointCloudTopic: "points_raw"               # 点云数据

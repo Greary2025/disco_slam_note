@@ -1,4 +1,4 @@
-disco_slam:
+disco_double:
 # 必须有 imu 话题
   # 话题
   pointCloudTopic: "lidar"               # 点云数据
@@ -36,7 +36,7 @@ disco_slam:
   downsampleRate: 1                           # 默认：1。如果点太多，可以降采样数据。例如，16 = 64 / 4，16 = 16 / 1
   # downsampleRate: 4                           # 默认：1。如果点太多，可以降采样数据。例如，16 = 64 / 4，16 = 16 / 1
   # lidarMinRange: 1.0                          # 默认：1.0，使用的最小激光雷达范围，单位是米
-  lidarMinRange: 5.0                          # 默认：1.0，使用的最小激光雷达范围，单位是米
+  lidarMinRange: 1.0                          # 默认：1.0，使用的最小激光雷达范围，单位是米
   # lidarMaxRange: 1000.0                       # 默认：1000.0，使用的最大激光雷达范围
   lidarMaxRange: 100.0                       # 默认：1000.0，使用的最大激光雷达范围
 
@@ -96,6 +96,10 @@ disco_slam:
   odometrySurfLeafSize: 0.2                     # 默认：0.4
   mappingCornerLeafSize: 0.1                    # 默认：0.2
   mappingSurfLeafSize: 0.2                      # 默认：0.4
+  # 零滤波
+  # odometrySurfLeafSize: 1e-6                     # 默认：0.4
+  # mappingCornerLeafSize: 1e-6                    # 默认：0.2
+  # mappingSurfLeafSize: 1e-6                      # 默认：0.4
 
   # 机器人运动约束（适用于2D机器人）
   z_tollerance: 1000                            # 米
@@ -116,16 +120,21 @@ disco_slam:
   loopClosureEnableFlag: true                   # 是否启用回环检测功能，true表示启用，false表示禁用
   loopClosureFrequency: 1.0                     # 赫兹，调节回环约束添加频率
   surroundingKeyframeSize: 5                   # 子地图大小（当回环检测启用时，越大越困难）
-  historyKeyframeSearchRadius: 1.5             # 米，距离当前位姿n米内的关键帧将被考虑用于回环检测
-  historyKeyframeSearchTimeDiff: 30.0           # 秒，n秒以前的关键帧将被考虑用于回环检测（很重要）
+  historyKeyframeSearchRadius: 5              # 米，距离当前位姿n米内的关键帧将被考虑用于回环检测
+  historyKeyframeSearchTimeDiff: 10.0           # 秒，n秒以前的关键帧将被考虑用于回环检测（很重要）
   historyKeyframeSearchNum: 25                  # 将融合到子地图中用于回环检测的历史关键帧数量
   historyKeyframeFitnessScore: 0.3              # ICP阈值，越小表示对齐越好
 
   # 可视化
   # globalMapVisualizationSearchRadius: 5000.0    # 米，全局地图可视化半径
   globalMapVisualizationSearchRadius: 1000.0    # 米，全局地图可视化半径
-  globalMapVisualizationPoseDensity: 10.0       # 米，全局地图可视化关键帧密度
-  globalMapVisualizationLeafSize: 1.0           # 米，全局地图可视化点云密度
+  # globalMapVisualizationPoseDensity: 10.0       # 米，全局地图可视化关键帧密度
+  # globalMapVisualizationLeafSize: 1.0           # 米，全局地图可视化点云密度
+
+  # 保留地图
+  # globalMapVisualizationSearchRadius: inf    # 米，设置为无穷大，显示全量点云数据
+  globalMapVisualizationPoseDensity: 0.01    # 米，设置一个极小值，显示更多关键帧
+  globalMapVisualizationLeafSize: 1e-6       # 米，设置一个极小值，保留更多点云细节
 
 
 # Navsat配置参数（用于将GPS坐标转换为笛卡尔坐标）

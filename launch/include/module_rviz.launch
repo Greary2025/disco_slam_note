@@ -1,8 +1,8 @@
 <launch>
 
-    <arg name="project" default="disco_slam"/>
+    <arg name="project" default="disco_double"/>
 
     <!--- Run Rviz-->
-    <node pkg="rviz" type="rviz" name="$(arg project)_rviz" args="-d $(find disco_slam)/launch/include/config/rviz.rviz" />
+    <node pkg="rviz" type="rviz" name="$(arg project)_rviz" args="-d $(find disco_double)/launch/include/config/rviz.rviz" />
 
 </launch>

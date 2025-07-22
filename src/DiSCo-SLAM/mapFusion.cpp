@@ -3,11 +3,11 @@
 //
 
 //msg
-// #include "disco_slam/cloud_info.h"
-#include "disco_slam/ring_cloud_info.h"
-#include "disco_slam/context_info.h"
+// #include "disco_double/cloud_info.h"
+#include "disco_double/ring_cloud_info.h"
+#include "disco_double/context_info.h"
 
-//third party
+//third party（最大团检测）
 #include "scanContext/scanContext.h"
 #include "fast_max-clique_finder/src/findClique.h"
 
@@ -52,6 +52,7 @@
 // 参数x: 源位姿
 // 参数p: 目标位姿
 // 返回值: 表示从x到p的变换位姿
+// hello world
 inline gtsam::Pose3_ transformTo(const gtsam::Pose3_& x, const gtsam::Pose3_& p) {
     // 最终将调用结果（即 x.transform_pose_to(p) 的返回值）
     // 则 x.transform_pose_to(p) 等价于 x.inverse() * p（位姿的逆乘以目标位姿）。
@@ -65,6 +66,7 @@ inline gtsam::Pose3_ transformTo(const gtsam::Pose3_& x, const gtsam::Pose3_& p)
  * @param thisFrame 坐标系名称，用于设置点云消息的frame_id
  * @return 返回构建好的sensor_msgs::PointCloud2消息
  */
+// hello world
 sensor_msgs::PointCloud2 publishCloud(ros::Publisher *thisPub, pcl::PointCloud<PointType>::Ptr thisCloud, ros::Time thisStamp, std::string thisFrame)
 {
     sensor_msgs::PointCloud2 tempCloud;  // 创建ROS点云消息对象
@@ -77,6 +79,23 @@ sensor_msgs::PointCloud2 publishCloud(ros::Publisher *thisPub, pcl::PointCloud<P
         thisPub->publish(tempCloud);
         
     return tempCloud;  // 返回构建好的消息
+}
+
+void saveToFile(const std::string& content, const std::string& filename) {
+    string dir = "/home/john/catkin_ws/src/disco_slam_note/results/";
+    try {
+        // std::ofstream file(dir + filename);
+        std::ofstream file(dir + filename, std::ios::app);
+        if (file.is_open()) {
+            file << content << std::endl;
+            file.close();
+            // std::cout << "successed" << std::endl;
+        } else {
+            // std::cerr << "Failed to open file: " << filename << std::endl;
+        }
+    } catch (const std::exception& e) {
+        // std::cerr << "Error occurred: " << e.what() << std::endl;
+    }
 }
 
 class MapFusion{
@@ -144,8 +163,8 @@ std::string _robot_initial;  // 初始机器人
 std::string _pcm_matrix_folder; // PCM矩阵文件夹
 
 // 数据存储结构
-// disco_slam::cloud_info _cloud_info;  // 点云信息
-disco_slam::ring_cloud_info _cloud_info;  // 点云信息
+// disco_double::cloud_info _cloud_info;  // 点云信息
+disco_double::ring_cloud_info _cloud_info;  // 点云信息
 std::vector<ScanContextBin> _context_list_to_publish_1; // 待发布上下文列表1
 std::vector<ScanContextBin> _context_list_to_publish_2; // 待发布上下文列表2
 
@@ -162,7 +181,7 @@ pcl::VoxelGrid<PointType> _downsize_filter_icp;          // ICP降采样滤波�
 // 状态变量
 std::pair<int, int> _initial_loop;  // 初始闭环
 int _id_bin_last;                   // 上一个bin ID
-disco_slam::context_info _loop_info; // 闭环信息
+disco_double::context_info _loop_info; // 闭环信息
 std_msgs::Header _cloud_header;      // 点云头信息
 
 // 点云数据
@@ -207,37 +226,37 @@ public:
      * 2. 设置ROS订阅器和发布器
      * 3. 根据是否为初始机器人决定是否订阅额外话题
      */
+    // hello world
     MapFusion(){
         // 加载参数配置
         ParamLoader();
         // 初始化成员变量和数据结构
         initialization();
-
+        
         // 相互之间的订阅
         // 设置通信信号订阅器
-        _sub_communication_signal = nh.subscribe<std_msgs::Bool>(_robot_id + "/disco_slam/signal",
-                 100, &MapFusion::communicationSignalHandler, this, ros::TransportHints().tcpNoDelay());
+        // _sub_communication_signal = nh.subscribe<std_msgs::Bool>(_robot_id + "/disco_double/signal",
+                //  100, &MapFusion::communicationSignalHandler, this, ros::TransportHints().tcpNoDelay());
 
         // 设置信号1和信号2的订阅器
-        _sub_signal_1 = nh.subscribe<std_msgs::Bool>(_signal_id_1 + "/disco_slam/signal",
-                 100, &MapFusion::signalHandler1, this, ros::TransportHints().tcpNoDelay());
-        _sub_signal_2 = nh.subscribe<std_msgs::Bool>(_signal_id_2 + "/disco_slam/signal",
-                 100, &MapFusion::signalHandler2, this, ros::TransportHints().tcpNoDelay());
-
-        // 设置激光点云信息订阅器
-        // _sub_laser_cloud_info = nh.subscribe<disco_slam::cloud_info>(_robot_id + "/" + _local_topic,
+        // _sub_signal_1 = nh.subscribe<std_msgs::Bool>(_signal_id_1 + "/disco_double/signal",
+                //  100, &MapFusion::signalHandler1, this, ros::TransportHints().tcpNoDelay());
+        // _sub_signal_2 = nh.subscribe<std_msgs::Bool>(_signal_id_2 + "/disco_double/signal",
+                //  100, &MapFusion::signalHandler2, this, ros::TransportHints().tcpNoDelay());
+        // 设置激光点云信息订阅器 ————> 转为context的回环切片
+        // _sub_laser_cloud_info = nh.subscribe<disco_double::cloud_info>(_robot_id + "/" + _local_topic,
         //         1, &MapFusion::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
-        _sub_laser_cloud_info = nh.subscribe<disco_slam::ring_cloud_info>(_robot_id + "/" + _local_topic,
+        _sub_laser_cloud_info = nh.subscribe<disco_double::ring_cloud_info>(_robot_id + "/" + _local_topic,
                 1, &MapFusion::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
-        // 设置全局闭环信息订阅器
-        _sub_loop_info_global = nh.subscribe<disco_slam::context_info>(_sc_topic + "/loop_info_global",
+        // 设置全局闭环信息订阅器 ————> 转为自己的回环信息
+        _sub_loop_info_global = nh.subscribe<disco_double::context_info>(_sc_topic + "/loop_info_global",
                             100, &MapFusion::globalLoopInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
         // 如果不是初始机器人，则订阅额外话题
         if(_robot_id != _robot_initial){
             // 设置扫描上下文信息订阅器
-            _sub_scan_context_info = nh.subscribe<disco_slam::context_info>(_sc_topic + "/context_info",
+            _sub_scan_context_info = nh.subscribe<disco_double::context_info>(_sc_topic + "/context_info",
                 20, &MapFusion::scanContextInfoHandler, this, ros::TransportHints().tcpNoDelay());
             // 设置里程计变换订阅器
             _sub_odom_trans = nh.subscribe<nav_msgs::Odometry>(_sc_topic + "/trans_odom",
@@ -245,12 +264,13 @@ public:
         }
 
         // 设置各种发布器
-        _pub_context_info     = nh.advertise<disco_slam::context_info> (_sc_topic + "/context_info", 1);
-        _pub_loop_info        = nh.advertise<disco_slam::context_info> (_robot_id + "/" + _sc_topic + "/loop_info", 1);
+        _pub_context_info     = nh.advertise<disco_double::context_info> (_sc_topic + "/context_info", 1);
+        _pub_loop_info        = nh.advertise<disco_double::context_info> (_robot_id + "/" + _sc_topic + "/loop_info", 1);
         _pub_cloud            = nh.advertise<sensor_msgs::PointCloud2> (_robot_id + "/" + _sc_topic + "/cloud", 1);
         _pub_trans_odom2map   = nh.advertise<nav_msgs::Odometry> ( _robot_id + "/" + _sc_topic + "/trans_map", 1);
         _pub_trans_odom2odom  = nh.advertise<nav_msgs::Odometry> ( _sc_topic + "/trans_odom", 1);
-        _pub_loop_info_global = nh.advertise<disco_slam::context_info>(_sc_topic + "/loop_info_global", 1);
+        _pub_loop_info_global = nh.advertise<disco_double::context_info>(_sc_topic + "/loop_info_global", 1);
+
     }
 
 
@@ -261,6 +281,7 @@ public:
      * 2. 根据通信信号和机器人ID优先级决定发布顺序
      * 3. 使用互斥锁保护共享数据
      */
+    // hello world
     void publishContextInfoThread(){
         // 将信号ID转换为数字形式
         int signal_id_th_1 = robotID2Number(_signal_id_1);
@@ -269,6 +290,7 @@ public:
         // 主循环，持续运行直到ROS关闭
         while (ros::ok())
         {
+            // saveToFile(to_string(_robot_id_th) +"\t" + to_string(signal_id_th_1), _robot_id + "singal_id.txt");
             // 检查信号1的条件是否满足
             if (_communication_signal && _signal_1 && _robot_id_th < signal_id_th_1){
                 // 如果发布列表为空则跳过
@@ -314,6 +336,7 @@ private:
      * 2. 从全局命名空间加载扫描上下文相关参数
      * 3. 从全局命名空间加载多机器人交互相关参数
      */
+    // hello world
     void ParamLoader(){
         // 创建私有节点句柄，用于获取私有参数
         ros::NodeHandle n("~");
@@ -357,6 +380,7 @@ private:
      * 4. 设置ICP降采样滤波器参数
      * 5. 初始化状态变量和标志位
      */
+    // hello world
     void initialization(){
         // 初始化点云容器
         _laser_cloud_sum.reset(new pcl::PointCloud<PointType>());      // 总点云初始化
@@ -380,7 +404,7 @@ private:
 
         // 设置ICP降采样滤波器参数
         // _downsize_filter_icp.setLeafSize(0.4, 0.4, 0.4);  // 设置体素网格大小为0.4m
-        _downsize_filter_icp.setLeafSize(0.4, 0.2, 0.4);  // 设置体素网格大小为0.4m
+        _downsize_filter_icp.setLeafSize(0.2, 0.1, 0.2);  // 设置体素网格大小为0.4m
 
         // 初始化状态变量
         _initial_loop.first = -1;  // 初始闭环标记为无效
@@ -403,8 +427,19 @@ private:
      * 该函数通过提取字符串最后一个字符并减去'0'的ASCII值，
      * 将机器人ID转换为对应的数字标识
      */
+    // int robotID2Number(std::string robo){
+    //     return robo.back() - '0';
+    // }
+    // hello world
+    // 先锋和跟随的回环，要重写id优先级
     int robotID2Number(std::string robo){
-        return robo.back() - '0';
+        // return robo.back() - '0';
+        if(robo == "xianfeng")
+            return 0;
+        else if(robo == "gensui")
+            return 1;
+        else if(robo == "jinlin")
+            return 2;
     }
 
 
@@ -417,8 +452,9 @@ private:
      * 3. 将bin信息加入待发布队列
      * 4. 发布上下文信息
      */
-    // void laserCloudInfoHandler(const disco_slam::cloud_infoConstPtr& msgIn)
-    void laserCloudInfoHandler(const disco_slam::ring_cloud_infoConstPtr& msgIn)
+    // hello world
+    // void laserCloudInfoHandler(const disco_double::cloud_infoConstPtr& msgIn)
+    void laserCloudInfoHandler(const disco_double::ring_cloud_infoConstPtr& msgIn)
     {
         // 清空各类点云容器
         _laser_cloud_sum->clear();      // 清空总点云
@@ -474,9 +510,9 @@ private:
      * 该函数用于处理来自其他机器人的通信信号，
      * 更新内部通信状态标志_communication_signal
      */
-    void communicationSignalHandler(const std_msgs::Bool::ConstPtr& msg){
-        _communication_signal = msg->data;  // 更新通信信号状态
-    }
+    // void communicationSignalHandler(const std_msgs::Bool::ConstPtr& msg){
+    //     _communication_signal = msg->data;  // 更新通信信号状态
+    // }
 
 
         /**
@@ -486,9 +522,9 @@ private:
      * 该函数用于处理来自其他机器人的信号1消息，
      * 更新内部信号1状态标志_signal_1
      */
-    void signalHandler1(const std_msgs::Bool::ConstPtr& msg){
-        _signal_1 = msg->data;  // 更新信号1状态
-    }
+    // void signalHandler1(const std_msgs::Bool::ConstPtr& msg){
+    //     _signal_1 = msg->data;  // 更新信号1状态
+    // }
 
 
         /**
@@ -498,9 +534,9 @@ private:
      * 该函数用于处理来自其他机器人的信号2消息，
      * 更新内部信号2状态标志_signal_2
      */
-    void signalHandler2(const std_msgs::Bool::ConstPtr& msg){
-        _signal_2 = msg->data;  // 更新信号2状态
-    }
+    // void signalHandler2(const std_msgs::Bool::ConstPtr& msg){
+    //     _signal_2 = msg->data;  // 更新信号2状态
+    // }
 
 
         /**
@@ -513,9 +549,10 @@ private:
      * 3. 设置位姿和点云信息
      * 4. 发布消息（线程安全）
      */
+    // hello world
     void publishContextInfo(ScanContextBin bin, std::string robot_to){
         // 初始化上下文信息消息
-        disco_slam::context_info context_info;
+        disco_double::context_info context_info;
         context_info.robotID = _robot_id;  // 设置当前机器人ID
 
         // 设置扫描上下文参数
@@ -565,6 +602,7 @@ private:
      * 2. 将位姿信息存储到全局变换映射中
      * 3. 更新因子图并发送地图输出消息
      */
+     // hello world
     void OdomTransHandler(const nav_msgs::Odometry::ConstPtr& odomMsg){
         // 获取发布该消息的机器人ID
         std::string robot_publish = odomMsg->header.frame_id;
@@ -574,6 +612,7 @@ private:
             
         // 获取子坐标系ID并构建索引键
         std::string robot_child = odomMsg->child_frame_id;
+        cout << "robot_child: " << robot_child << endl;
         std::string index = robot_child + robot_publish;
         
         // 解析位姿信息
@@ -591,6 +630,7 @@ private:
 
         // 使用intensity字段存储机器人ID的数字形式
         pose.intensity = robotID2Number(robot_child);
+        cout << "pose.intensity: " << robot_child << endl;
 
         // 查找或创建该索引对应的位姿列表
         auto ite = _global_odom_trans.find(index);
@@ -617,7 +657,8 @@ private:
      * 2. 发布闭环信息
      * 3. 发送地图输出消息
      */
-    void globalLoopInfoHandler(const disco_slam::context_infoConstPtr& msgIn){
+    // hello world
+    void globalLoopInfoHandler(const disco_double::context_infoConstPtr& msgIn){
         // 跳过调试用的返回语句
         // return;
         
@@ -642,6 +683,7 @@ private:
      * 4. 添加里程计变换约束
      * 5. 执行优化并更新全局变换
      */
+     // hello world
     void gtsamFactorGraph(){
         // 检查是否有足够的变换数据
         if (_global_map_trans.size() == 0 && _global_odom_trans.size() == 0)
@@ -700,6 +742,7 @@ private:
         // 添加里程计变换约束
         for(auto ite: _global_odom_trans){
             int id_publish = robotID2Number(ite.first);
+            cout << "id_publish: " << ite.first << endl;
             int id_child = ite.second[0].intensity;
             int id_0 = std::min(id_publish, id_child);
             int id_1 = std::max(id_publish, id_child);
@@ -816,6 +859,9 @@ private:
 
         // 获取当前机器人的优化结果
         gtsam::Pose3 est = result.at<gtsam::Pose3>(_robot_id_th);
+        gtsam::Pose3 bst = result.at<gtsam::Pose3>(_robot_id_th - 1);
+        cout << "est: " << est.translation().x() << ", " << est.translation().y() << ", " << est.translation().z() << endl;
+        cout << "bst: " << bst.translation().x() << ", " << bst.translation().y() << ", " << bst.translation().z() << endl;
 
         // 将优化结果存储到发布变量中
         _trans_to_publish.x = est.translation().x();
@@ -830,6 +876,7 @@ private:
 
         if (_trans_to_publish.intensity == 1){
             int robot_id_initial = robotID2Number(_robot_initial);
+            cout << "robot_id_initial: " << _robot_initial << endl;
             if (_global_map_trans_optimized.find(robot_id_initial) == _global_map_trans_optimized.end()){
                 _global_map_trans_optimized.emplace(std::make_pair(robot_id_initial, _trans_to_publish));
             }
@@ -851,9 +898,10 @@ private:
      * 3. 构建ScanContextBin结构体
      * 4. 调用run函数处理扫描上下文数据
      */
-    void scanContextInfoHandler(const disco_slam::context_infoConstPtr& msgIn){
+     // hello world
+    void scanContextInfoHandler(const disco_double::context_infoConstPtr& msgIn){
         // 复制消息内容到本地变量
-        disco_slam::context_info context_info_input = *msgIn;
+        disco_double::context_info context_info_input = *msgIn;
         
         // 检查通信信号是否有效
         if (!_communication_signal)
@@ -914,22 +962,27 @@ private:
      * 6. 进行GTSAM因子图优化
      * 7. 发送优化后的变换结果
      */
+    // hello world
     void run(ScanContextBin bin){
         // 构建KD树用于后续搜索
         buildKDTree(bin);
         
         // 执行K近邻搜索寻找相似扫描上下文
         KNNSearch(bin);
-
+        
         // 如果K近邻搜索无结果且启用位置搜索，则执行基于距离的搜索
+        // xianfeng满足K近邻搜索
         if(_idx_nearest_list.empty() && _use_position_search)
+        {
             distanceSearch(bin);
-
+            
+        }
         // 获取初始位姿估计，失败则直接返回
+        // xianfeng问题1
         if(!getInitialGuesses(bin)){
             return;
         }
-
+        
         // 执行增量式PCM验证，失败则直接返回
         if(!incrementalPCM()){
             return;
@@ -952,9 +1005,11 @@ private:
      * 3. 对于当前机器人：转换其他机器人点到当前坐标系
      * 4. 执行半径搜索并存储匹配结果
      */
+     //hello world(有固定参数)
     void distanceSearch(ScanContextBin bin){
         // 获取当前机器人ID的数字形式
         int id_this = robotID2Number(bin.robotname);
+        cout << "id_this: " << bin.robotname << endl;
         
         // 处理其他机器人的情况
         if(bin.robotname != _robot_id){
@@ -982,7 +1037,7 @@ private:
             pt_query.y = T_query.translation().y(); 
             pt_query.z = T_query.translation().z();
 
-            // 执行半径搜索(5米范围内)
+            // 执行半径搜索(5米范围内)（注意参数确定）
             _kdtree_pose_to_search->setInputCloud(_cloud_pose_to_search_this);
             _kdtree_pose_to_search->radiusSearch(pt_query, 5, idx_list, dist_list, 0);
             
@@ -1006,6 +1061,7 @@ private:
             for (unsigned int i = 0; i < _cloud_pose_to_search_other->size(); i++){
                 PointType tmp = _cloud_pose_to_search_other->points[i];
                 int id_this = robotID2Number(_bin_with_id[tmp.intensity].robotname);
+                cout << "distance_id_this: " << _bin_with_id[tmp.intensity].robotname << endl;
                 
                 // 跳过没有优化位姿的机器人
                 if(_global_map_trans_optimized.find(id_this) == _global_map_trans_optimized.end())
@@ -1062,9 +1118,11 @@ private:
      * 2. 根据机器人ID将位姿点存入不同的点云容器
      * 3. 更新目标矩阵并重建KD树
      */
+    //hello world
     void buildKDTree(ScanContextBin bin){
         // 增加bin计数器
         _num_bin++;
+        // cout << _robot_id <<"_num_bin: " << _num_bin << endl;
         
         // 存储接收到的数据，key为bin索引，value为扫描上下文数据
         _bin_with_id.emplace( std::make_pair(_num_bin-1, bin) );
@@ -1104,9 +1162,11 @@ private:
      * 4. 计算完整扫描上下文距离
      * 5. 排序并存储最佳匹配结果
      */
+    // hello world
     void KNNSearch(ScanContextBin bin){
         // 检查候选bin数量是否足够
         if (_num_nearest_matches >= _num_bin){
+            // cout << _robot_id <<"_num_nearest_matches: " << _num_nearest_matches << endl;
             return; // 候选不足直接返回
         }
 
@@ -1119,7 +1179,7 @@ private:
 
         // 执行K近邻搜索(基于环键特征)
         _nns->knn(bin.ringkey, indices, dists2, num_neighbors);
-
+        
         // 初始化变量
         int idx_candidate, rot_idx;
         float distance_to_query;
@@ -1130,32 +1190,50 @@ private:
         for (int i = 0; i < std::min(num_neighbors, int(indices.size())); ++i){
             // 检查搜索是否正常工作
             if (indices.sum() == 0)
+            {
+                
                 continue;
+            }
 
             // 检查候选索引是否有效
             idx_candidate = indices[i];
             if (idx_candidate >= _num_bin)
+            {
+                
                 continue;
+            }
 
             // 跳过同机器人的候选
             if (bin.robotname == _bin_with_id.at(idx_candidate).robotname)
+            {
+                
                 continue;
+            }
 
             // 跳过与当前机器人无关的匹配对
             if (bin.robotname != _robot_id && _bin_with_id.at(idx_candidate).robotname != _robot_id)
+            {
+                
                 continue;
+            }
 
             // 跳过特定ID范围的机器人
             if(robotID2Number(bin.robotname) >= _robot_id_th && 
                robotID2Number(_bin_with_id.at(idx_candidate).robotname) >= _robot_id_th)
+               {
+                
                 continue;
+               }
 
             // 计算完整扫描上下文距离
             distance_to_query = distBtnScanContexts(bin.bin, _bin_with_id.at(idx_candidate).bin, rot_idx);
 
             // 跳过距离超过阈值的候选
             if(distance_to_query > _loop_thres)
+            {
+                // cout << _robot_id << " distance_to_query " << distance_to_query << endl;
                 continue;
+            }
 
             // 添加到候选列表
             idx_list.emplace_back(std::make_tuple(distance_to_query, idx_candidate, rot_idx));
@@ -1166,7 +1244,10 @@ private:
 
         // 无有效候选则返回
         if (idx_list.size() == 0)
+        {
+            // cout << _robot_id <<"_idx_list.size(): " << idx_list.size() << endl;
             return;
+        }
 
         // 按距离排序候选列表
         std::sort(idx_list.begin(), idx_list.end());
@@ -1192,18 +1273,20 @@ private:
      * 3. 对每个候选调用getInitialGuess获取初始估计
      * 4. 返回是否有新候选的标志
      */
+     // hello world
     bool getInitialGuesses(ScanContextBin bin){
         // 检查最近邻列表是否为空
         if(_idx_nearest_list.size() == 0){
             return false;
         }
-        
+        // cout << "id_this: " << bin.robotname << endl;
         // 初始化新候选标志
         bool new_candidate_signal = false;
         
         // 遍历所有最近邻候选
         for (auto it: _idx_nearest_list){
             // 对每个候选获取初始估计
+            // 使用ICP算法验证初始位姿
             new_candidate_signal = getInitialGuess(bin, it.first, it.second);
         }
         
@@ -1224,7 +1307,11 @@ private:
      * 3. 获取目标位姿
      * 4. 计算初始位姿估计(三种情况)
      * 5. 执行ICP配准验证
+     * - bin ：当前的扫描上下文数据
+     * - idx_nearest ：最近邻bin的索引
+     * - min_idx ：最小旋转索引（用于计算旋转角度）
      */
+     // hello world
     bool getInitialGuess(ScanContextBin bin, int idx_nearest, int min_idx){
         // 初始化bin索引
         int id0 = idx_nearest, id1 = _num_bin - 1;
@@ -1240,6 +1327,7 @@ private:
 
         // 获取当前机器人ID的数字形式
         int robot_id_this = robotID2Number(bin.robotname);
+        // cout << "robot_id_this: " << bin.robotname << endl;
 
         // 检查是否已记录该机器人ID
         auto robot_id_this_ite = std::find(_robot_received_list.begin(), _robot_received_list.end(), robot_id_this);
@@ -1264,6 +1352,7 @@ private:
         // 设置当前处理的机器人信息
         _robot_this = bin_nearest.robotname;
         _robot_this_th = robotID2Number(_robot_this);
+        // cout << "_robot_this_th: " << _robot_this_th << endl;
 
         // 从扫描上下文获取目标位姿
         target_pose = bin_nearest.pose;
@@ -1307,7 +1396,10 @@ private:
 
         // 检查ICP结果是否有效
         if (pose_source_lidar.intensity == -1 || pose_source_lidar.intensity > _icp_thres)
+        {
+            cout << _robot_id << "\t" << pose_source_lidar.intensity << "\t" << _icp_thres << endl;
             return false;
+        }
 
         // 准备GTSAM位姿数据
         // 将源位姿转换为GTSAM格式
@@ -1357,6 +1449,7 @@ private:
      * 3. 找到最大相似度及其对应的旋转索引
      * 4. 返回距离值(1-最大相似度)
      */
+     // hello world（计算旋转角度）
     float distBtnScanContexts(Eigen::MatrixXf bin1, Eigen::MatrixXf bin2, int & idx){
         // 初始化存储每个旋转位置相似度的向量
         Eigen::VectorXf sim_for_each_cols(_num_sectors);
@@ -1416,7 +1509,15 @@ private:
      * 3. 使用OpenMP并行处理每个点
      * 4. 应用变换矩阵计算新坐标
      * 5. 保留原始点强度信息
+     * - cloudIn ：输入点云（指向PCL点云的智能指针）
+     * - transformIn ：变换参数（包含位置和姿态信息的结构体指针）
+     * 函数返回变换后的点云（同样是指向PCL点云的智能指针）。
+     * [x']   [r11 r12 r13 tx] [x]
+     * [y'] = [r21 r22 r23 ty] [y]
+     * [z']   [r31 r32 r33 tz] [z]
+     * [1 ]   [0   0   0   1 ] [1]
      */
+    // hello world
     pcl::PointCloud<PointType>::Ptr transformPointCloud(pcl::PointCloud<PointType>::Ptr cloudIn, PointTypePose* transformIn)
     {
         // 创建输出点云对象
@@ -1466,17 +1567,23 @@ private:
      * 3. 执行ICP配准
      * 4. 计算并返回校正后的位姿
      */
+    // hello world（死参数）
     PointTypePose icpRelativeMotion(pcl::PointCloud<PointType>::Ptr source,
                                    pcl::PointCloud<PointType>::Ptr target,
                                    PointTypePose pose_source)
     {
         // 配置ICP算法参数
         pcl::IterativeClosestPoint<PointType, PointType> icp;
-        icp.setMaxCorrespondenceDistance(100);  // 设置最大对应点距离(米)
-        icp.setMaximumIterations(100);          // 设置最大迭代次数
-        icp.setTransformationEpsilon(1e-6);     // 设置变换收敛阈值
-        icp.setEuclideanFitnessEpsilon(1e-6);   // 设置欧式距离误差收敛阈值
-        icp.setRANSACIterations(0);             // 禁用RANSAC(0表示不启用)
+        // icp.setMaxCorrespondenceDistance(100);  // 设置最大对应点距离(米)
+        // icp.setMaximumIterations(100);          // 设置最大迭代次数
+        // icp.setTransformationEpsilon(1e-6);     // 设置变换收敛阈值
+        // icp.setEuclideanFitnessEpsilon(1e-6);   // 设置欧式距离误差收敛阈值
+        // icp.setRANSACIterations(0);             // 禁用RANSAC(0表示不启用)
+        icp.setMaxCorrespondenceDistance(1);
+        icp.setMaximumIterations(100);
+        icp.setTransformationEpsilon(1e-6);
+        icp.setEuclideanFitnessEpsilon(1e-6);
+        icp.setRANSACIterations(0);
 
         // 创建临时点云并执行降采样
         pcl::PointCloud<PointType>::Ptr cloud_temp(new pcl::PointCloud<PointType>());
@@ -1538,6 +1645,7 @@ private:
      * 3. 使用启发式算法寻找最大团
      * 4. 更新闭环接受队列
      */
+     // hello world
     bool incrementalPCM() {
         // 检查位姿队列大小是否达到PCM启动阈值
         if (_pose_queue[_robot_this_th].size() < _pcm_start_threshold)
@@ -1736,6 +1844,7 @@ private:
      * 4. 执行优化计算
      * 5. 存储优化结果并更新全局变换
      */
+    // hello world
     void gtsamExpressionGraph(){
         // 检查闭环接受队列是否至少有2个元素
         if (_loop_accept_queue[_robot_this_th].size()<2)
@@ -1843,6 +1952,7 @@ private:
      * 4. 填充坐标系ID和变换数据
      * 5. 发布变换消息
      */
+    // hello world
     void sendMapOutputMessage(){
         // 检查变换有效性(强度值为0表示无效变换)
         if (_trans_to_publish.intensity == 0)
@@ -1881,6 +1991,7 @@ private:
      * 4. 发送当前和历史的闭环信息
      * 5. 更新最后处理的bin ID
      */
+     // hello world
     void sendGlobalLoopMessageKDTree(){
         // 获取当前机器人的闭环队列和最新闭环信息
         auto loop_list = _loop_queue[_robot_this_th];

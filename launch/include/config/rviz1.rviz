@@ -170,7 +170,7 @@ Visualization Manager:
             Shaft Length: 1
             Shaft Radius: 0.0500000007
             Value: Axes
-          Topic: /disco_slam/mapping/odometry
+          Topic: /disco_double/mapping/odometry
           Unreliable: false
           Value: false
       Enabled: false
@@ -202,7 +202,7 @@ Visualization Manager:
           Size (Pixels): 2
           Size (m): 0.00999999978
           Style: Points
-          Topic: /jackal0/disco_slam/deskew/cloud_deskewed
+          Topic: /jackal0/disco_double/deskew/cloud_deskewed
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -232,7 +232,7 @@ Visualization Manager:
           Size (Pixels): 3
           Size (m): 0.00999999978
           Style: Points
-          Topic: /disco_slam/mapping/cloud_registered
+          Topic: /disco_double/mapping/cloud_registered
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -262,7 +262,7 @@ Visualization Manager:
           Size (Pixels): 2
           Size (m): 0.00999999978
           Style: Points
-          Topic: /jackal1/disco_slam/deskew/cloud_deskewed
+          Topic: /jackal1/disco_double/deskew/cloud_deskewed
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -296,7 +296,7 @@ Visualization Manager:
           Size (Pixels): 5
           Size (m): 0.00999999978
           Style: Points
-          Topic: /disco_slam/feature/cloud_corner
+          Topic: /disco_double/feature/cloud_corner
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -326,7 +326,7 @@ Visualization Manager:
           Size (Pixels): 3
           Size (m): 0.00999999978
           Style: Points
-          Topic: /disco_slam/feature/cloud_surface
+          Topic: /disco_double/feature/cloud_surface
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -415,7 +415,7 @@ Visualization Manager:
           Radius: 0.0299999993
           Shaft Diameter: 0.100000001
           Shaft Length: 0.100000001
-          Topic: /jackal0/disco_slam/mapping/path
+          Topic: /jackal0/disco_double/mapping/path
           Unreliable: false
           Value: true
         - Alpha: 1
@@ -443,7 +443,7 @@ Visualization Manager:
           Size (Pixels): 1
           Size (m): 0.00999999978
           Style: Points
-          Topic: /jackal0/disco_slam/mapping/map_global
+          Topic: /jackal0/disco_double/mapping/map_global
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -477,7 +477,7 @@ Visualization Manager:
           Size (Pixels): 1
           Size (m): 0.00999999978
           Style: Points
-          Topic: /jackal1/disco_slam/mapping/map_global
+          Topic: /jackal1/disco_double/mapping/map_global
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -502,7 +502,7 @@ Visualization Manager:
           Radius: 0.0299999993
           Shaft Diameter: 0.100000001
           Shaft Length: 0.100000001
-          Topic: /jackal1/disco_slam/imu/path
+          Topic: /jackal1/disco_double/imu/path
           Unreliable: false
           Value: true
         - Alpha: 1
@@ -525,7 +525,7 @@ Visualization Manager:
           Radius: 0.0299999993
           Shaft Diameter: 0.100000001
           Shaft Length: 0.100000001
-          Topic: /jackal1/disco_slam/mapping/path
+          Topic: /jackal1/disco_double/mapping/path
           Unreliable: false
           Value: true
       Enabled: true
@@ -617,7 +617,7 @@ Visualization Manager:
           Size (Pixels): 1
           Size (m): 0.00999999978
           Style: Points
-          Topic: /jackal2/disco_slam/mapping/map_global
+          Topic: /jackal2/disco_double/mapping/map_global
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -642,7 +642,7 @@ Visualization Manager:
           Radius: 0.0299999993
           Shaft Diameter: 0.100000001
           Shaft Length: 0.100000001
-          Topic: /jackal2/disco_slam/imu/path
+          Topic: /jackal2/disco_double/imu/path
           Unreliable: false
           Value: true
         - Alpha: 1
@@ -665,7 +665,7 @@ Visualization Manager:
           Radius: 0.0299999993
           Shaft Diameter: 0.100000001
           Shaft Length: 0.100000001
-          Topic: /jackal2/disco_slam/mapping/path
+          Topic: /jackal2/disco_double/mapping/path
           Unreliable: false
           Value: true
       Enabled: true

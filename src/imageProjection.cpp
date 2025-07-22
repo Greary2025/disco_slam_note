@@ -1,7 +1,7 @@
 // 数据预处理模块
 #include "utility.h"
-// #include "disco_slam/cloud_info.h"
-#include "disco_slam/ring_cloud_info.h"
+// #include "disco_double/cloud_info.h"
+#include "disco_double/ring_cloud_info.h"
 // Velodyne激光雷达点结构定义，包含XYZI(坐标和强度)、ring(线号)和time(时间戳)
 struct VelodynePointXYZIRT
 {
@@ -99,8 +99,8 @@ private:
     float odomIncreY;  // Y轴增量
     float odomIncreZ;  // Z轴增量
     // 点云信息
-    // disco_slam::cloud_info cloudInfo;
-    disco_slam::ring_cloud_info cloudInfo;
+    // disco_double::cloud_info cloudInfo;
+    disco_double::ring_cloud_info cloudInfo;
     double timeScanCur;  // 当前扫描起始时间
     double timeScanEnd;  // 当前扫描结束时间
     std_msgs::Header cloudHeader;  // 点云头信息
@@ -124,8 +124,8 @@ public:
         // 订阅里程计增量话题
         // 注意话题名后缀"_incremental"表示增量数据，用于里程计去畸变
         // 其他参数含义同上
-        // subOdom = nh.subscribe<nav_msgs::Odometry>(robot_id + "/" + odomTopic+"_incremental", 2000, &ImageProjection::odometryHandler, this, ros::TransportHints().tcpNoDelay());
-        subOdom = nh.subscribe<nav_msgs::Odometry>(robot_id + "/" + "disco_slam/mapping/odometry"+"_incremental", 5, &ImageProjection::odometryHandler, this, ros::TransportHints().tcpNoDelay());
+        subOdom = nh.subscribe<nav_msgs::Odometry>(robot_id + "/" + odomTopic+"_incremental", 2000, &ImageProjection::odometryHandler, this, ros::TransportHints().tcpNoDelay());
+        // subOdom = nh.subscribe<nav_msgs::Odometry>(robot_id + "/" + "disco_double/mapping/odometry"+"_incremental", 5, &ImageProjection::odometryHandler, this, ros::TransportHints().tcpNoDelay());
         
         // 订阅激光雷达点云话题
         // 参数2: 5 - 队列长度较小，因为点云数据量大，避免占用过多内存
@@ -134,17 +134,17 @@ public:
         subLaserCloud = nh.subscribe<sensor_msgs::PointCloud2>(robot_id + "/" + pointCloudTopic, 5, &ImageProjection::cloudHandler, this, ros::TransportHints().tcpNoDelay());
 
         // 创建点云发布器
-        // 参数1: robot_id + "/disco_slam/deskew/cloud_deskewed" - 发布话题名称，用于发布去畸变后的点云
+        // 参数1: robot_id + "/disco_double/deskew/cloud_deskewed" - 发布话题名称，用于发布去畸变后的点云
         // 参数2: 1 - 消息队列长度，只保留最新的1条消息
         // 消息类型为sensor_msgs::PointCloud2，标准ROS点云消息格式
-        pubExtractedCloud = nh.advertise<sensor_msgs::PointCloud2> (robot_id + "/disco_slam/deskew/cloud_deskewed", 1);
+        pubExtractedCloud = nh.advertise<sensor_msgs::PointCloud2> (robot_id + "/disco_double/deskew/cloud_deskewed", 1);
         
         // 创建点云信息发布器，将进入下一个文件和流程
-        // 参数1: robot_id + "/disco_slam/deskew/cloud_info" - 发布话题名称，用于发布点云的附加信息
+        // 参数1: robot_id + "/disco_double/deskew/cloud_info" - 发布话题名称，用于发布点云的附加信息
         // 参数2: 1 - 消息队列长度，只保留最新的1条消息
-        // 消息类型为自定义的disco_slam::cloud_info，包含点云的结构化信息
-        // pubLaserCloudInfo = nh.advertise<disco_slam::cloud_info> (robot_id + "/disco_slam/deskew/cloud_info", 1);
-        pubLaserCloudInfo = nh.advertise<disco_slam::ring_cloud_info> (robot_id + "/disco_slam/deskew/cloud_info", 1);
+        // 消息类型为自定义的disco_double::cloud_info，包含点云的结构化信息
+        // pubLaserCloudInfo = nh.advertise<disco_double::cloud_info> (robot_id + "/disco_double/deskew/cloud_info", 1);
+        pubLaserCloudInfo = nh.advertise<disco_double::ring_cloud_info> (robot_id + "/disco_double/deskew/cloud_info", 1);
 
         // 分配内存并初始化参数
         allocateMemory();
@@ -655,7 +655,7 @@ public:
         newPoint.intensity = point->intensity;
 
         // ROS_INFO("Processing scan %d, position: x=%.2f, y=%.2f", scan_id, x, y);
-        ROS_INFO("IMU_deskewPoint success");
+        // ROS_INFO("IMU_deskewPoint success");
         return newPoint;
     }
 
@@ -859,7 +859,7 @@ public:
 int main(int argc, char** argv)
 {
     // 初始化ROS节点
-    ros::init(argc, argv, "disco_slam");
+    ros::init(argc, argv, "disco_double");
 
     // 创建图像投影处理对象
     ImageProjection IP;

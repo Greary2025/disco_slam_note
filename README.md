@@ -126,7 +126,7 @@ The user needs to prepare the point cloud data in the correct format for cloud d
 
 1. Run the launch file:
 ```
-roslaunch disco_slam run.launch
+roslaunch disco_double run.launch
 ```
 
 2. Play existing bag files:

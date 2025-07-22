@@ -1,0 +1,15 @@
+<launch>
+
+    <arg name="project" default="disco_double"/>
+
+    <!--- Run Rviz-->
+    <node pkg="rviz" type="rviz" name="$(arg project)_rviz_all" 
+        args="-d $(find disco_double)/launch/include/config/rviz_ue.rviz" />
+    <node pkg="rviz" type="rviz" name="$(arg project)_rviz_xianfeng" 
+        args="-d $(find disco_double)/launch/include/config/rviz_xianfeng.rviz" />
+    <node pkg="rviz" type="rviz" name="$(arg project)_rviz_gensui" 
+        args="-d $(find disco_double)/launch/include/config/rviz_gensui.rviz" />
+    <!-- <node pkg="rviz" type="rviz" name="$(arg project)_rviz_up" 
+        args="-d $(find disco_double)/launch/include/config/rviz_up.rviz" /> -->
+
+</launch>

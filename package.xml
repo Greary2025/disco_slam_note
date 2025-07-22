@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>disco_slam</name>
+  <name>disco_double</name>
   <version>1.0.0</version>
   <description>Lidar Odometry</description>
 

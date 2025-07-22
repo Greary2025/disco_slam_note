@@ -1,27 +1,32 @@
 mapfusion:  # 地图融合相关配置
     scancontext:  # ScanContext特征提取和匹配相关参数
-        knn_feature_dim: 16      # KNN特征维度
+        knn_feature_dim: 16      # KNN特征维度（维度越高，特征丰富）
         # knn_feature_dim: 64      # KNN特征维度
         max_range: 30            # 最大扫描范围（米）
-        num_sector: 60           # 扇区数量，用于生成ScanContext描述子
-        num_nearest_matches: 50   # 最近邻匹配数量
-        num_match_candidates: 1   # 匹配候选数量
+        # num_sector: 60           # 扇区数量，用于生成ScanContext描述子（扇区多，精度高，计算量大）
+        num_sector: 72           # 扇区数量，用于生成ScanContext描述子
+        # num_nearest_matches: 50   # 最近邻匹配数量（匹配数量多，精度高，计算量大）
+        num_nearest_matches: 10   # 最近邻匹配数量（匹配数量多，精度高，计算量大）
+        num_match_candidates: 1   # 匹配候选数量（匹配数量多，精度高，计算量大）
         #vertial_axis: #should be x/y/z  # 垂直轴选择（x/y/z）
 
     interRobot:  # 机器人间通信和匹配相关参数
         #topic  # 话题配置
         sc_topic: "context"                    # ScanContext发布话题
         sc_frame: "base_link"                 # ScanContext参考坐标系
-        local_topic: "disco_slam/mapping/cloud_info"  # 本地点云信息话题
+        local_topic: "disco_double/mapping/cloud_info"  # 本地点云信息话题
 
         #thres  # 阈值配置
-        loop_threshold: 0.2         # 回环检测阈值
-        # pcm_threshold: 20           # 点云匹配阈值
-        pcm_threshold: 100           # 点云匹配阈值
-        # icp_threshold: 3            # ICP配准阈值
+        # loop_threshold: 0.2         # 回环检测阈值（匹配得分，数值小，越严格,距离要求越近，0~0.5）
+        loop_threshold: 0.2         # 回环检测阈值（匹配得分，数值小，越严格）
+        # pcm_threshold: 20           # 点云匹配阈值（超过阈值，匹配失败，数值越大，允许误差越大）
+        pcm_threshold: 80           # 点云匹配阈值
+        # icp_threshold: 3            # ICP配准阈值（ICP误差，小于该值，迭代停止，平移误差影响过多）
         icp_threshold: 5            # ICP配准阈值
+        # loop_frame_threshold: 10    # 回环帧阈值（帧数）检测到回环后，再检测多少帧，才开始新回环
         loop_frame_threshold: 10    # 回环帧阈值（帧数）
         pcm_start_threshold: 5      # PCM开始阈值（5为最佳结果，2用于恶劣环境）
+                                    # 匹配得分低于该阈值时，才开始进行点云匹配
 
         # robot_initial: jackal0      # 初始机器人标识
         robot_initial: xianfeng
