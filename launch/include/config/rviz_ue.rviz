@@ -4,9 +4,8 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /Global Options1
         - /links1
-        - /links1/base_link_01
-        - /links1/base_link_11
         - /Point Cloud1/Velodyne_01
         - /Point Cloud1/Velodyne_11
         - /Mapping 01
@@ -399,7 +398,7 @@ Visualization Manager:
         - Alpha: 1
           Buffer Length: 1
           Class: rviz/Path
-          Color: 255; 255; 0
+          Color: 170; 85; 0
           Enabled: true
           Head Diameter: 0.30000001192092896
           Head Length: 0.20000000298023224
@@ -780,7 +779,7 @@ Visualization Manager:
       Value: false
   Enabled: true
   Global Options:
-    Background Color: 0; 0; 0
+    Background Color: 255; 255; 255
     Default Light: true
     Fixed Frame: map
     Frame Rate: 30
@@ -812,7 +811,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: base_link
-      Yaw: 1.5750738382339478
+      Yaw: 3.165076732635498
     Saved: ~
 Window Geometry:
   Displays:
@@ -828,5 +827,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1280
-  X: 1899
-  Y: -29
+  X: 1985
+  Y: 59

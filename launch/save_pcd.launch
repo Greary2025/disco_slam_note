@@ -3,8 +3,8 @@
     <!-- PCD保存节点启动文件 -->
     
     <!-- 参数定义 -->
-    <arg name="save_directory" default="$(env HOME)/saved_pcds" doc="PCD文件保存目录"/>
-    <!-- <arg name="save_directory" default="/mnt/c/Users/Greary/Documents/Examdata/saved_pcds" doc="PCD文件保存目录"/> -->
+    <!-- <arg name="save_directory" default="$(env HOME)/saved_pcds" doc="PCD文件保存目录"/> -->
+    <arg name="save_directory" default="/mnt/c/Users/Greary/Documents/Examdata/saved_pcds" doc="PCD文件保存目录"/>
     <!-- <arg name="topic_name" default="/points_raw" doc="要订阅的点云话题名称"/> -->
     <arg name="topic_name" default="disco_double/mapping/map_global" doc="要订阅的点云话题名称"/>
     <arg name="robot_id" default="xianfeng" doc="机器人ID，用于多机器人场景"/>

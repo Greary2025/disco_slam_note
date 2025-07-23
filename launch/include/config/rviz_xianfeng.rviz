@@ -4,12 +4,14 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /Global Options1
         - /Status1
         - /links1
         - /Odometry1
         - /Feature Cloud1
         - /Feature Cloud1/Edge Feature1
         - /Mapping 01
+        - /Mapping 01/Path (global)_01
       Splitter Ratio: 0.5600000023841858
     Tree Height: 140
   - Class: rviz/Selection
@@ -368,7 +370,7 @@ Visualization Manager:
         - Alpha: 1
           Buffer Length: 1
           Class: rviz/Path
-          Color: 255; 255; 0
+          Color: 170; 85; 0
           Enabled: true
           Head Diameter: 0.30000001192092896
           Head Length: 0.20000000298023224
@@ -749,7 +751,7 @@ Visualization Manager:
       Value: false
   Enabled: true
   Global Options:
-    Background Color: 0; 0; 0
+    Background Color: 255; 255; 255
     Default Light: true
     Fixed Frame: map
     Frame Rate: 30
@@ -771,17 +773,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 2.0911202430725098
-        Y: -2.665079355239868
-        Z: -21.693117141723633
+        X: 6.707953929901123
+        Y: 2.1318936347961426
+        Z: -21.55016326904297
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.564796805381775
+      Pitch: 1.5397963523864746
       Target Frame: base_link
-      Yaw: 1.5700774192810059
+      Yaw: 3.140080690383911
     Saved: ~
 Window Geometry:
   Displays:
@@ -797,5 +799,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 978
-  X: 2190
-  Y: 472
+  X: 2158
+  Y: 440

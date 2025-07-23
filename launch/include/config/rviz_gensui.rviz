@@ -4,6 +4,7 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /Global Options1
         - /links1
         - /Point Cloud1
         - /Feature Cloud1
@@ -779,7 +780,7 @@ Visualization Manager:
       Value: false
   Enabled: true
   Global Options:
-    Background Color: 0; 0; 0
+    Background Color: 255; 255; 255
     Default Light: true
     Fixed Frame: map
     Frame Rate: 30
@@ -801,17 +802,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 2.8722193241119385
-        Y: 3.622927188873291
-        Z: 15.667572975158691
+        X: 4.715132713317871
+        Y: 3.3288090229034424
+        Z: 15.715449333190918
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 1.544796347618103
       Target Frame: base_link
-      Yaw: 1.578255295753479
+      Yaw: 3.148259162902832
     Saved: ~
 Window Geometry:
   Displays:
@@ -827,5 +828,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1031
-  X: 2758
-  Y: 285
+  X: 2726
+  Y: 253
