@@ -4,9 +4,10 @@
     
     <!-- 参数定义 -->
     <!-- <arg name="save_directory" default="$(env HOME)/saved_pcds" doc="PCD文件保存目录"/> -->
-    <arg name="save_directory" default="/mnt/c/Users/Greary/Documents/Examdata/saved_pcds" doc="PCD文件保存目录"/>
+    <arg name="save_directory" default="/mnt/c/Users/Greary/Documents/rosbag/hba/0722_xianfeng" doc="PCD文件保存目录"/>
     <!-- <arg name="topic_name" default="/points_raw" doc="要订阅的点云话题名称"/> -->
     <arg name="topic_name" default="disco_double/mapping/map_global" doc="要订阅的点云话题名称"/>
+    <arg name="path_topic" default="disco_double/mapping/path" doc="要订阅的路径话题名称"/>
     <arg name="robot_id" default="xianfeng" doc="机器人ID，用于多机器人场景"/>
     
     <!-- 启动PCD保存节点 -->
@@ -20,6 +21,9 @@
         <!-- /jackal0/points_raw - 特定机器人的原始点云 -->
         <!-- /disco_double/deskew/cloud_deskewed - 去畸变后的点云 -->
         <param name="topic_name" value="/$(arg robot_id)/$(arg topic_name)"/>
+        
+        <!-- 设置路径话题名称 -->
+        <param name="path_topic" value="/$(arg robot_id)/$(arg path_topic)"/>
         
         <!-- 重映射话题（可选，如果需要的话） -->
         <!-- <remap from="/points_raw" to="/$(arg robot_id)/points_raw"/> -->
