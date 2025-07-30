@@ -50,7 +50,7 @@
     <!-- <include file="$(find disco_double)/launch/include/module_navsat.launch" /> -->
 
     <!-- 运行Rviz可视化工具 -->
-    <!-- <include file="$(find disco_double)/launch/include/module_rviz_ue.launch" /> -->
+    <include file="$(find disco_double)/launch/include/module_rviz_ue.launch" />
 
     <!-- 运行通信模拟器 (已注释) -->
     <!-- <node pkg="$(arg project)" name= "$(arg project)_listener" type="listener.py" output="screen"/> -->

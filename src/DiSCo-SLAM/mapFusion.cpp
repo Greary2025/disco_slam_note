@@ -6,6 +6,7 @@
 // #include "disco_double/cloud_info.h"
 #include "disco_double/ring_cloud_info.h"
 #include "disco_double/context_info.h"
+#include "fast_gicp.h"
 
 //third party（最大团检测）
 #include "scanContext/scanContext.h"
@@ -1572,18 +1573,8 @@ private:
                                    pcl::PointCloud<PointType>::Ptr target,
                                    PointTypePose pose_source)
     {
-        // 配置ICP算法参数
-        pcl::IterativeClosestPoint<PointType, PointType> icp;
-        // icp.setMaxCorrespondenceDistance(100);  // 设置最大对应点距离(米)
-        // icp.setMaximumIterations(100);          // 设置最大迭代次数
-        // icp.setTransformationEpsilon(1e-6);     // 设置变换收敛阈值
-        // icp.setEuclideanFitnessEpsilon(1e-6);   // 设置欧式距离误差收敛阈值
-        // icp.setRANSACIterations(0);             // 禁用RANSAC(0表示不启用)
-        icp.setMaxCorrespondenceDistance(1);
-        icp.setMaximumIterations(100);
-        icp.setTransformationEpsilon(1e-6);
-        icp.setEuclideanFitnessEpsilon(1e-6);
-        icp.setRANSACIterations(0);
+        // 配置FastGICP算法参数，从配置文件加载相对运动估计专用参数
+        FastGICP<PointType, PointType> fast_gicp("disco_double/relative_motion_gicp");
 
         // 创建临时点云并执行降采样
         pcl::PointCloud<PointType>::Ptr cloud_temp(new pcl::PointCloud<PointType>());
@@ -1595,23 +1586,23 @@ private:
         _downsize_filter_icp.filter(*cloud_temp);     // 执行降采样滤波
         *target = *cloud_temp;                       // 更新目标点云
 
-        // 执行ICP配准
-        icp.setInputSource(source);  // 设置源点云
-        icp.setInputTarget(target);  // 设置目标点云
+        // 执行FastGICP配准
+        fast_gicp.setInputSource(source);  // 设置源点云
+        fast_gicp.setInputTarget(target);  // 设置目标点云
         pcl::PointCloud<PointType>::Ptr unused_result(new pcl::PointCloud<PointType>());
-        icp.align(*unused_result);   // 执行配准
+        fast_gicp.align(*unused_result);   // 执行配准
         PointTypePose pose_from;     // 存储结果位姿
 
-        // 检查ICP是否收敛
-        if (icp.hasConverged() == false){
+        // 检查FastGICP是否收敛
+        if (fast_gicp.hasConverged() == false){
             pose_from.intensity = -1;  // 设置无效标志
             return pose_from;          // 返回无效结果
         }
 
-        // 获取ICP变换矩阵并转换为欧拉角
+        // 获取FastGICP变换矩阵并转换为欧拉角
         float x, y, z, roll, pitch, yaw;
         Eigen::Affine3f correctionLidarFrame;
-        correctionLidarFrame = icp.getFinalTransformation();  // 获取最终变换矩阵
+        correctionLidarFrame = fast_gicp.getFinalTransformation();  // 获取最终变换矩阵
         pcl::getTranslationAndEulerAngles(correctionLidarFrame, x, y, z, roll, pitch, yaw);
 
         // 计算校正后的位姿(世界坐标系到校正后位姿的变换)
@@ -1630,7 +1621,7 @@ private:
         pose_from.yaw = yaw;
         pose_from.roll = roll;
         pose_from.pitch = pitch;
-        pose_from.intensity = icp.getFitnessScore();  // 存储ICP匹配分数
+        pose_from.intensity = fast_gicp.getFitnessScore();  // 存储FastGICP匹配分数
 
         return pose_from;  // 返回校正后的位姿
     }

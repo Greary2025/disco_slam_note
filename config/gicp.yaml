@@ -1,0 +1,72 @@
+# FastGICP算法配置参数
+# 用于配置FastGICP点云配准算法的各项参数
+
+disco_double:
+  # FastGICP基础配置参数
+  fast_gicp:
+    # 最大对应点距离(米) - 用于限制点云配准时的最大匹配距离
+    max_correspondence_distance: 1.0
+    
+    # 最大迭代次数 - 算法收敛的最大迭代次数
+    max_iterations: 150
+    
+    # 变换收敛阈值 - 连续两次迭代间变换矩阵的最小变化量
+    transformation_epsilon: 1e-6
+    
+    # 欧式距离误差收敛阈值 - 点云配准的欧式距离误差阈值
+    euclidean_fitness_epsilon: 1e-6
+    
+    # 体素分辨率(米) - 用于降采样的体素网格大小，影响配准精度和速度
+    voxel_resolution: 0.2
+    
+    # 线程数量 - 并行处理的线程数，建议设置为CPU核心数
+    num_threads: 4
+    
+    # 对应点随机性 - 用于提高配准鲁棒性的随机采样点数
+    correspondence_randomness: 20
+    
+  # 回环检测专用FastGICP配置
+  loop_closure_gicp:
+    # 回环检测时的最大对应点距离，通常设置为关键帧搜索半径的2倍
+    max_correspondence_distance: 30.0  # historyKeyframeSearchRadius*2
+    
+    # 回环检测的最大迭代次数
+    max_iterations: 100
+    
+    # 回环检测的变换收敛阈值
+    transformation_epsilon: 1e-6
+    
+    # 回环检测的欧式距离误差收敛阈值
+    euclidean_fitness_epsilon: 1e-6
+    
+    # 回环检测的体素分辨率，可以设置得稍大以提高速度
+    voxel_resolution: 0.2
+    
+    # 回环检测的线程数量
+    num_threads: 4
+    
+    # 回环检测的对应点随机性
+    correspondence_randomness: 20
+    
+  # 相对运动估计专用FastGICP配置
+  relative_motion_gicp:
+    # 相对运动估计的最大对应点距离
+    max_correspondence_distance: 1.0
+    
+    # 相对运动估计的最大迭代次数
+    max_iterations: 100
+    
+    # 相对运动估计的变换收敛阈值
+    transformation_epsilon: 1e-6
+    
+    # 相对运动估计的欧式距离误差收敛阈值
+    euclidean_fitness_epsilon: 1e-6
+    
+    # 相对运动估计的体素分辨率，设置得更精细以提高精度
+    voxel_resolution: 0.1
+    
+    # 相对运动估计的线程数量
+    num_threads: 4
+    
+    # 相对运动估计的对应点随机性
+    correspondence_randomness: 20

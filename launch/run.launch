@@ -20,6 +20,8 @@
     <!-- KITTI-08 -->
     <rosparam file="$(find disco_double)/config/params_k.yaml" command="load" />
     <rosparam file="$(find disco_double)/src/DiSCo-SLAM/config/mapfusion_k.yaml" command="load"/>
+    <!-- FastGICP配置参数 -->
+    <rosparam file="$(find disco_double)/config/gicp.yaml" command="load" />
     <!-- 启动机器人0的LOAM模块 -->
     <include file="$(find disco_double)/launch/include/module_loam.launch" >
         <arg name="robot" value="$(arg robot0)"/>

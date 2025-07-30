@@ -5,6 +5,8 @@
 #include "disco_double/ring_cloud_info.h"
 // 包含 disco_double 包中的 context_info 消息类型头文件，用于处理上下文信息
 #include "disco_double/context_info.h"
+// 包含 FastGICP 算法头文件，用于快速点云配准
+#include "fast_gicp.h"
 
 // 包含 gtsam 库中旋转矩阵相关的头文件，用于处理三维旋转
 #include <gtsam/geometry/Rot3.h>
@@ -1038,48 +1040,38 @@ public:
                 publishCloud(&pubHistoryKeyFrames, prevKeyframeCloud, timeLaserInfoStamp, robot_id + "/" + odometryFrame);
         }
 
-        // 创建并配置ICP算法对象
-        static pcl::IterativeClosestPoint<PointType, PointType> icp;
-        // 设置最大对应点距离阈值
-        icp.setMaxCorrespondenceDistance(historyKeyframeSearchRadius*2);
-        // 设置最大迭代次数
-        icp.setMaximumIterations(100);
-        // 设置变换矩阵元素收敛阈值
-        icp.setTransformationEpsilon(1e-6);
-        // 设置两次变换间隔的欧氏距离收敛阈值
-        icp.setEuclideanFitnessEpsilon(1e-6);
-        // 禁用RANSAC迭代
-        icp.setRANSACIterations(0);
+        // 创建并配置FastGICP算法对象，从配置文件加载回环检测专用参数
+        static FastGICP<PointType, PointType> fast_gicp("disco_double/loop_closure_gicp");
 
-        // 设置ICP算法的输入源点云和目标点云
-        icp.setInputSource(cureKeyframeCloud);
-        icp.setInputTarget(prevKeyframeCloud);
+        // 设置FastGICP算法的输入源点云和目标点云
+        fast_gicp.setInputSource(cureKeyframeCloud);
+        fast_gicp.setInputTarget(prevKeyframeCloud);
         // 创建结果点云（实际未使用）
         pcl::PointCloud<PointType>::Ptr unused_result(new pcl::PointCloud<PointType>());
         // 执行点云配准
-        icp.align(*unused_result);
+        fast_gicp.align(*unused_result);
 
-        // 检查ICP配准结果
+        // 检查FastGICP配准结果
         // 如果未收敛或匹配分数过高则认为配准失败，直接返回
-        if (icp.hasConverged() == false || icp.getFitnessScore() > historyKeyframeFitnessScore)
+        if (fast_gicp.hasConverged() == false || fast_gicp.getFitnessScore() > historyKeyframeFitnessScore)
             return;
 
-        // 如果有订阅者，发布经过ICP配准后的点云结果
+        // 如果有订阅者，发布经过FastGICP配准后的点云结果
         if (pubIcpKeyFrames.getNumSubscribers() != 0)
         {
             // 创建用于存储配准后点云的智能指针
             pcl::PointCloud<PointType>::Ptr closed_cloud(new pcl::PointCloud<PointType>());
-            // 使用ICP得到的变换矩阵对当前帧点云进行变换
-            pcl::transformPointCloud(*cureKeyframeCloud, *closed_cloud, icp.getFinalTransformation());
+            // 使用FastGICP得到的变换矩阵对当前帧点云进行变换
+            pcl::transformPointCloud(*cureKeyframeCloud, *closed_cloud, fast_gicp.getFinalTransformation());
             // 发布变换后的点云
             publishCloud(&pubIcpKeyFrames, closed_cloud, timeLaserInfoStamp, robot_id + "/" + odometryFrame);
         }
 
         // 声明用于存储位姿变换参数的变量
         float x, y, z, roll, pitch, yaw;
-        // 获取ICP计算得到的变换矩阵
+        // 获取FastGICP计算得到的变换矩阵
         Eigen::Affine3f correctionLidarFrame;
-        correctionLidarFrame = icp.getFinalTransformation();
+        correctionLidarFrame = fast_gicp.getFinalTransformation();
         // 获取当前帧原始（未校正）的位姿变换矩阵
         Eigen::Affine3f tWrong = pclPointToAffine3f(copy_cloudKeyPoses6D->points[loopKeyCur]);
         // 计算校正后的位姿变换矩阵
@@ -1091,8 +1083,8 @@ public:
         gtsam::Pose3 poseTo = pclPointTogtsamPose3(copy_cloudKeyPoses6D->points[loopKeyPre]);
         // 创建噪声模型向量
         gtsam::Vector Vector6(6);
-        float noiseScore = icp.getFitnessScore();
-        // 使用ICP的匹配分数作为噪声值
+        float noiseScore = fast_gicp.getFitnessScore();
+        // 使用FastGICP的匹配分数作为噪声值
         Vector6 << noiseScore, noiseScore, noiseScore, noiseScore, noiseScore, noiseScore;
         // 创建对角噪声模型
         noiseModel::Diagonal::shared_ptr constraintNoise = noiseModel::Diagonal::Variances(Vector6);
