@@ -58,7 +58,7 @@
     <node name="rosbag_player" pkg="rosbag" type="play" output="screen" args="-r 1 -q $(arg discoslam_bag)">  </node>
     
     <!-- 启动PCD保存节点 -->
-    <include file="$(find disco_double)/launch/save_pcd.launch" />
+    <!-- <include file="$(find disco_double)/launch/save_pcd.launch" /> -->
     
 
 </launch>
