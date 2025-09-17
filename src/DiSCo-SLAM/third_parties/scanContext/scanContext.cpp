@@ -18,6 +18,7 @@
 
 // 包含扫描上下文的头文件
 #include "scanContext.h"
+#include <limits>  // 用于std::numeric_limits
 
 /**
  * @brief ScanContext 类的构造函数
@@ -73,8 +74,11 @@ ScanContextBin ScanContext::ptcloud2bin(pcl::PointCloud<PointType>::Ptr pt_cloud
  * @return Eigen::MatrixXf 转换后的扫描上下文矩阵
  */
 Eigen::MatrixXf ScanContext::ptCloud2ScanContext(pcl::PointCloud<PointType>::Ptr pt_cloud){
-  // 初始化最大高度矩阵，用于存储每个网格的最大高度
-  Eigen::MatrixXf max_bin = Eigen::MatrixXf::Zero(_num_rings, _num_sectors);
+  // 原方案：初始化最大高度矩阵，用于存储每个网格的最大高度（已注释保留）
+  // Eigen::MatrixXf max_bin = Eigen::MatrixXf::Zero(_num_rings, _num_sectors);
+  
+  // 新方案：初始化最小高度矩阵，用于存储每个网格的最小高度
+  Eigen::MatrixXf min_bin = Eigen::MatrixXf::Constant(_num_rings, _num_sectors, std::numeric_limits<float>::max());
   // 初始化计数器矩阵，用于记录每个网格的点数量
   Eigen::MatrixXf bin_counter = Eigen::MatrixXf::Zero(_num_rings, _num_sectors);
 
@@ -110,24 +114,31 @@ Eigen::MatrixXf ScanContext::ptCloud2ScanContext(pcl::PointCloud<PointType>::Ptr
       // 调整扇区索引使其从 0 开始
       sector_index = sector_index - 1;
 
-    // 如果当前点的 z 坐标大于该网格的最大高度，更新最大高度
-    if (point_this.z > max_bin(ring_index, sector_index))
-      max_bin(ring_index, sector_index) = point_this.z;
+    // 原方案：如果当前点的 z 坐标大于该网格的最大高度，更新最大高度（已注释保留）
+    // if (point_this.z > max_bin(ring_index, sector_index))
+    //   max_bin(ring_index, sector_index) = point_this.z;
+    
+    // 新方案：如果当前点的 z 坐标小于该网格的最小高度，更新最小高度
+    if (point_this.z < min_bin(ring_index, sector_index))
+      min_bin(ring_index, sector_index) = point_this.z;
 
     // 对应网格的点计数器加 1
     bin_counter(ring_index, sector_index)++;
   }
 
-  // 遍历最大高度矩阵和计数器矩阵
+  // 遍历最小高度矩阵和计数器矩阵
   for (int i = 0; i < _num_rings; i++){
     for (int j = 0; j < _num_sectors; j++){
-      // 如果某个网格的点数量少于 5 个，将该网格的最大高度置为 0
+      // 如果某个网格的点数量少于 5 个，将该网格的最小高度置为 0
       if(bin_counter(i,j)<5)
-        max_bin(i,j) = 0;
+        min_bin(i,j) = 0;
+      // 如果网格中没有点（仍为初始值），也将其置为 0
+      else if(min_bin(i,j) == std::numeric_limits<float>::max())
+        min_bin(i,j) = 0;
     }
   }
-  // 返回处理后的最大高度矩阵
-  return max_bin;
+  // 返回处理后的最小高度矩阵
+  return min_bin;
 }
 
 /**

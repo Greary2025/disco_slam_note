@@ -214,3 +214,96 @@ Part of the code is adapted from [LeGO-LOAM](https://github.com/RobustFieldAuton
 ## Acknowledgement
 
   - LIO-SAM is based on LOAM (J. Zhang and S. Singh. LOAM: Lidar Odometry and Mapping in Real-time).
+
+
+## 话题
+/client_count
+/clock
+/context/context_info
+/context/loop_info_global
+/context/trans_odom
+/gensui/context/cloud
+/gensui/context/loop_info
+/gensui/context/trans_map
+/gensui/disco_double/deskew/cloud_deskewed
+/gensui/disco_double/deskew/cloud_info
+/gensui/disco_double/feature/cloud_corner
+/gensui/disco_double/feature/cloud_info
+/gensui/disco_double/feature/cloud_surface
+/gensui/disco_double/imu/path
+/gensui/disco_double/mapping/cloud_info
+/gensui/disco_double/mapping/cloud_registered
+/gensui/disco_double/mapping/cloud_registered_raw
+/gensui/disco_double/mapping/feature_cloud_global
+/gensui/disco_double/mapping/icp_loop_closure_corrected_cloud
+/gensui/disco_double/mapping/icp_loop_closure_history_cloud
+/gensui/disco_double/mapping/loop_closure_constraints
+/gensui/disco_double/mapping/map_global
+/gensui/disco_double/mapping/map_local
+/gensui/disco_double/mapping/odometry
+/gensui/disco_double/mapping/odometry_incremental
+/gensui/disco_double/mapping/path
+/gensui/disco_double/mapping/trajectory
+/gensui/imu
+/gensui/lidar
+/gensui/lio_loop/loop_closure_detection
+/gensui/odometry/imu
+/gensui/odometry/imu_incremental
+/gensui/pose
+/odometry/gpsz
+/rosout
+/rosout_agg
+/tf
+/tf_static
+/xianfeng/context/cloud
+/xianfeng/context/loop_info
+/xianfeng/context/trans_map
+/xianfeng/disco_double/deskew/cloud_deskewed
+/xianfeng/disco_double/deskew/cloud_info
+/xianfeng/disco_double/feature/cloud_corner
+/xianfeng/disco_double/feature/cloud_info
+/xianfeng/disco_double/feature/cloud_surface
+/xianfeng/disco_double/imu/path
+/xianfeng/disco_double/mapping/cloud_info
+/xianfeng/disco_double/mapping/cloud_registered
+/xianfeng/disco_double/mapping/cloud_registered_raw
+/xianfeng/disco_double/mapping/feature_cloud_global
+/xianfeng/disco_double/mapping/icp_loop_closure_corrected_cloud
+/xianfeng/disco_double/mapping/icp_loop_closure_history_cloud
+/xianfeng/disco_double/mapping/loop_closure_constraints
+/xianfeng/disco_double/mapping/map_global
+/xianfeng/disco_double/mapping/map_local
+/xianfeng/disco_double/mapping/odometry
+/xianfeng/disco_double/mapping/odometry_incremental
+/xianfeng/disco_double/mapping/path
+/xianfeng/disco_double/mapping/trajectory
+/xianfeng/imu
+/xianfeng/lidar
+/xianfeng/lio_loop/loop_closure_detection
+/xianfeng/odometry/imu
+/xianfeng/odometry/imu_incremental
+/xianfeng/pose
+
+## 保存PCD与位姿（ERASOR）
+
+提供节点将激光点云、轨迹与最终地图保存至指定目录。
+
+### 启动
+```
+roslaunch disco_double save_pcd_erasor.launch \
+  output_dir:=/your/output/dir \
+  lidar_topic:=/xianfeng/lidar \
+  path_topic:=/xianfeng/disco_double/mapping/path \
+  map_topic:=/xianfeng/disco_double/mapping/map_global \
+  timeout_sec:=10.0
+```
+
+### 功能
+- 将 `lidar_topic` 的点云按帧保存为 PCD 到 `output_dir/pcds/`。
+- 将 `path_topic` 的最新位姿以追加方式写入 `output_dir/poses_lidar2body_origin.csv`，CSV 头：
+  - `frame_id,timestamp,x,y,z,qx,qy,qz,qw`。
+- 将最后接收到的 `map_topic` 地图在超时或退出时保存到 `output_dir/map_global_final.pcd`。
+- 当超过 `timeout_sec` 未接收到任一订阅话题，自动停止并保存最终地图后退出。
+
+### 备注
+- 可直接与现有 `CMakeLists.txt` 一起编译，生成可执行体 `disco_double_save_pcd_erasor`。

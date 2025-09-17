@@ -3,7 +3,7 @@
     <param name="/use_sim_time" value="false" />
     <!-- <arg name="project" default="disco_double"/>      项目名称，默认为disco_double -->
     <!-- <arg name="discoslam_bag" value="/mnt/c/Users/Greary/Documents/rosbag/double2/double_0708.bag"/> -->
-    <arg name="discoslam_bag" value="/mnt/d/rosbag/double2/double_0722.bag"/>
+    <arg name="discoslam_bag" value="/mnt/c/Users/Greary/Documents/rosbag/dynamic/dynamic_synchronous.bag"/>
 
     <!-- 启动 rosbag play 节点 -->
     <!-- <node name="rosbag_player" pkg="rosbag" type="play"  -->
@@ -57,8 +57,10 @@
 
     <node name="rosbag_player" pkg="rosbag" type="play" output="screen" args="-r 1 -q $(arg discoslam_bag)">  </node>
     
-    <!-- 启动PCD保存节点 -->
-    <!-- <include file="$(find disco_double)/launch/save_pcd.launch" /> -->
+    <!-- 启动ERASOR格式PCD保存节点 -->
+    <include file="$(find disco_double)/launch/save_pcd_erasor.launch">
+        <arg name="robot_id" value="$(arg robot0)"/>
+    </include>
     
 
 </launch>

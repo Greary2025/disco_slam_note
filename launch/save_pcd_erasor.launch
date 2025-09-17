@@ -1,0 +1,17 @@
+<launch>
+  <!-- 可配置输出目录，默认 /tmp/disco_outputs -->
+  <arg name="output_dir" default="/mnt/d/rosbag/hba/0722_xianfeng" />
+  <arg name="lidar_topic" default="/xianfeng/lidar" />
+  <arg name="path_topic" default="/xianfeng/pose" />
+  <arg name="map_topic" default="/xianfeng/context/cloud" />
+  <arg name="timeout_sec" default="10.0" />
+
+  <node pkg="disco_double" type="disco_double_save_pcd_erasor" name="save_pcd_erasor" output="screen">
+    <param name="output_dir" value="$(arg output_dir)" />
+    <param name="lidar_topic" value="$(arg lidar_topic)" />
+    <param name="path_topic" value="$(arg path_topic)" />
+    <param name="map_topic" value="$(arg map_topic)" />
+    <param name="timeout_sec" value="$(arg timeout_sec)" />
+  </node>
+</launch>
+

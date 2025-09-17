@@ -183,6 +183,15 @@ target_link_libraries(${PROJECT_NAME}_save_pcd
                       ${catkin_LIBRARIES} 
                       ${PCL_LIBRARIES})
 
+# ERASOR格式PCD保存节点
+add_executable(${PROJECT_NAME}_save_pcd_erasor src/save_pcd_erasor.cpp)
+add_dependencies(${PROJECT_NAME}_save_pcd_erasor 
+                ${catkin_EXPORTED_TARGETS} 
+                ${PROJECT_NAME}_generate_messages_cpp)
+target_link_libraries(${PROJECT_NAME}_save_pcd_erasor 
+                      ${catkin_LIBRARIES} 
+                      ${PCL_LIBRARIES})
+
 # 安装Python脚本(已注释)
 #catkin_install_python(PROGRAMS scripts/listener.py
 #	DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
