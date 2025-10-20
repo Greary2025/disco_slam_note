@@ -3,7 +3,7 @@
     <param name="/use_sim_time" value="false" />
     <!-- <arg name="project" default="disco_double"/>      项目名称，默认为disco_double -->
     <!-- <arg name="discoslam_bag" value="/mnt/c/Users/Greary/Documents/rosbag/double2/double_0708.bag"/> -->
-    <arg name="discoslam_bag" value="/mnt/d/rosbag/double2/double_0722.bag"/>
+    <arg name="discoslam_bag" value="/mnt/d/rosbag/shiyan/2025-09-28-20-24-38.bag"/>
 
     <!-- 启动 rosbag play 节点 -->
     <!-- <node name="rosbag_player" pkg="rosbag" type="play"  -->
@@ -50,7 +50,7 @@
     <!-- <include file="$(find disco_double)/launch/include/module_navsat.launch" /> -->
 
     <!-- 运行Rviz可视化工具 -->
-    <!-- <include file="$(find disco_double)/launch/include/module_rviz_ue.launch" /> -->
+    <include file="$(find disco_double)/launch/include/module_rviz_ue.launch" />
 
     <!-- 运行通信模拟器 (已注释) -->
     <!-- <node pkg="$(arg project)" name= "$(arg project)_listener" type="listener.py" output="screen"/> -->
