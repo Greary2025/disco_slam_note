@@ -4,11 +4,16 @@
     
     <!-- 参数定义 -->
     <!-- <arg name="save_directory" default="$(env HOME)/saved_pcds" doc="PCD文件保存目录"/> -->
-    <arg name="save_directory" default="/mnt/c/Users/Greary/Documents/rosbag/hba/0722_xianfeng" doc="PCD文件保存目录"/>
+    <!-- <arg name="save_directory" default="/mnt/c/Users/Greary/Documents/rosbag/hba/0722_xianfeng" doc="PCD文件保存目录"/> -->
+    <arg name="save_directory" default="/mnt/d/rosbag/Examdata/double_evo/ours" doc="PCD文件保存目录"/>
     <!-- <arg name="topic_name" default="/points_raw" doc="要订阅的点云话题名称"/> -->
     <arg name="topic_name" default="disco_double/mapping/map_global" doc="要订阅的点云话题名称"/>
     <arg name="path_topic" default="disco_double/mapping/path" doc="要订阅的路径话题名称"/>
     <arg name="robot_id" default="xianfeng" doc="机器人ID，用于多机器人场景"/>
+
+    <arg name="save_pcd" default="false" doc="是否保存PCD地图"/>
+    <arg name="save_trajectory" default="true" doc="是否保存TUM轨迹"/>
+    <arg name="timestamp_mode" default="absolute" doc="轨迹时间戳模式：relative(默认，第一帧0，后续为时间差) 或 absolute(当前绝对时间戳)"/>
     
     <!-- 启动PCD保存节点 -->
     <node name="save_pcd_node" pkg="disco_double" type="disco_double_save_pcd" output="screen">
@@ -22,8 +27,13 @@
         <!-- /disco_double/deskew/cloud_deskewed - 去畸变后的点云 -->
         <param name="topic_name" value="/$(arg robot_id)/$(arg topic_name)"/>
         
-        <!-- 设置路径话题名称 -->
+    <!-- 设置路径话题名称 -->
         <param name="path_topic" value="/$(arg robot_id)/$(arg path_topic)"/>
+
+    <!-- 保存控制开关 -->
+    <param name="save_pcd" value="$(arg save_pcd)"/>
+    <param name="save_trajectory" value="$(arg save_trajectory)"/>
+    <param name="timestamp_mode" value="$(arg timestamp_mode)"/>
         
         <!-- 重映射话题（可选，如果需要的话） -->
         <!-- <remap from="/points_raw" to="/$(arg robot_id)/points_raw"/> -->

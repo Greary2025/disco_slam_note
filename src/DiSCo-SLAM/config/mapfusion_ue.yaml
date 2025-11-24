@@ -19,10 +19,10 @@ mapfusion:  # 地图融合相关配置
         #thres  # 阈值配置
         # loop_threshold: 0.2         # 回环检测阈值（匹配得分，数值小，越严格,距离要求越近，0~0.5）
         loop_threshold: 0.2         # 回环检测阈值（匹配得分，数值小，越严格）
-        # pcm_threshold: 20           # 点云匹配阈值（超过阈值，匹配失败，数值越大，允许误差越大）
-        pcm_threshold: 80           # 点云匹配阈值
-        # icp_threshold: 3            # ICP配准阈值（ICP误差，小于该值，迭代停止，平移误差影响过多）
-        icp_threshold: 5            # ICP配准阈值
+        pcm_threshold: 20           # 点云匹配阈值（超过阈值，匹配失败，数值越大，允许误差越大）
+        # pcm_threshold: 80           # 点云匹配阈值
+        icp_threshold: 3            # ICP配准阈值（ICP误差，小于该值，迭代停止，平移误差影响过多）
+        # icp_threshold: 5            # ICP配准阈值
         # loop_frame_threshold: 10    # 回环帧阈值（帧数）检测到回环后，再检测多少帧，才开始新回环
         loop_frame_threshold: 10    # 回环帧阈值（帧数）
         pcm_start_threshold: 5      # PCM开始阈值（5为最佳结果，2用于恶劣环境）

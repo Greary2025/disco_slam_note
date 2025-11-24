@@ -40,22 +40,31 @@ private:
     std::string save_directory_;  // PCD文件存储路径
     std::string topic_name_;      // 订阅的点云话题名称
     std::string path_topic_;      // 订阅的路径话题名称
-    std::string pose_file_;       // pose.json文件路径
+    std::string trajectory_file_; // TUM 轨迹文件路径（.txt 纯文本）
     
     // 文件计数器（保证文件名唯一性）
     int file_counter_;            
-    // pose文件输出流
-    std::ofstream pose_stream_;
-    // 最后接收到消息的时间
-    ros::Time last_msg_time_;
+    // 轨迹文件输出流
+    std::ofstream trajectory_stream_;
+    // 最后接收到点云的“数据集绝对时间戳”（来自消息 header.stamp）
+    ros::Time last_header_stamp_;
+    // 最后一次接收消息的本地/ROS当前时间（用于无消息时的超时回退）
+    ros::Time last_receive_wall_time_;
     // 超时时间（秒）
     double timeout_duration_;
     // 是否已接收到第一条消息
     bool received_first_msg_;
+    // 保存开关
+    bool save_pcd_enabled_;
+    bool save_traj_enabled_;
+    // 时间戳模式："relative"（默认，第一帧0，后续为与上一帧的时间差，均基于数据集header.stamp）或 "absolute"（数据集绝对时间戳）
+    std::string timestamp_mode_;
+    double prev_stamp_sec_ = 0.0;
+    bool prev_stamp_inited_ = false;
     
     // 数据更新检测相关变量
     size_t last_cloud_size_;             // 上一次点云的大小
-    ros::Time last_data_change_time_;    // 最后一次数据变化的时间
+    ros::Time last_data_change_stamp_;   // 最后一次数据变化的“数据集绝对时间戳”（header.stamp）
     int same_data_count_;                // 连续相同数据的计数
     // 当前位姿信息（tx ty tz qw qx qy qz）
     std::vector<double> current_pose_;
@@ -67,7 +76,7 @@ private:
      * @param path 目录路径
      * @return true 目录存在且可访问
      * @return false 目录不存在或不可访问
-     * @note 使用POSIX标准库函数进行目录检查，
+    * @note 使用POSIX标准库函数进行目录检查，
      *       不会自动创建目录，需要用户手动创建
      */
     bool checkDirectory(const std::string& path)
@@ -104,9 +113,21 @@ private:
         struct stat info;
         if (stat(pcd_dir.c_str(), &info) != 0)
         {
-            ROS_ERROR("PCD directory does not exist: %s", pcd_dir.c_str());
-            ROS_ERROR("Please create the pcd folder manually in the save directory.");
-            return false;
+            // 子目录不存在则自动创建
+            ROS_WARN("PCD directory does not exist, creating: %s", pcd_dir.c_str());
+            if (mkdir(pcd_dir.c_str(), 0755) != 0)
+            {
+                ROS_ERROR("Failed to create PCD directory: %s", pcd_dir.c_str());
+                return false;
+            }
+            // 创建后再次确认
+            if (stat(pcd_dir.c_str(), &info) != 0 || !(info.st_mode & S_IFDIR))
+            {
+                ROS_ERROR("PCD directory creation check failed: %s", pcd_dir.c_str());
+                return false;
+            }
+            ROS_INFO("Created PCD directory: %s", pcd_dir.c_str());
+            return true;
         }
         else if (!(info.st_mode & S_IFDIR))
         {
@@ -157,24 +178,25 @@ private:
             return;
         }
         
-        ros::Time current_time = ros::Time::now();
-        double time_since_last_change = (current_time - last_data_change_time_).toSec();
+    // 使用“数据集绝对时间”（header.stamp）评估相对时间间隔
+    double time_since_last_change = (last_header_stamp_ - last_data_change_stamp_).toSec();
         
         // 如果连续接收到相同数据超过5次，且超过超时时间，则认为数据流结束
         if (same_data_count_ >= 5 && time_since_last_change > timeout_duration_)
         {
-            ROS_INFO("Point cloud data has not changed for %.1f seconds (received %d identical clouds).", 
+            ROS_INFO("Point cloud data (by size) unchanged for %.1f sec of dataset time (count=%d).", 
                      time_since_last_change, same_data_count_);
             ROS_INFO("Data stream appears to have ended. Stopping PCD saving.");
             ROS_INFO("Total saved: %d PCD files.", file_counter_);
             ros::shutdown();
         }
         
-        // 如果完全没有接收到消息超过超时时间的2倍，也停止程序
-        double time_since_last_msg = (current_time - last_msg_time_).toSec();
+        // 回退：如果现实/ROS当前时间超过超时时间的2倍未收到任何消息，也停止程序
+        ros::Time now_wall = ros::Time::now();
+        double time_since_last_msg = (now_wall - last_receive_wall_time_).toSec();
         if (time_since_last_msg > timeout_duration_ * 2)
         {
-            ROS_INFO("No point cloud messages received for %.1f seconds.", time_since_last_msg);
+            ROS_INFO("No point cloud messages received for %.1f sec (wall/ROS time).", time_since_last_msg);
             ROS_INFO("Data stream appears to have ended. Stopping PCD saving.");
             ROS_INFO("Total saved: %d PCD files.", file_counter_);
             ros::shutdown();
@@ -200,7 +222,7 @@ public:
      * @details 执行以下初始化步骤：
      * 1. 从参数服务器获取配置参数
      * 2. 检查存储目录是否存在
-     * 3. 初始化点云订阅器和时间戳文件
+      * 3. 初始化点云订阅器和TUM轨迹文件
      * 4. 启动超时检测定时器
      * 5. 打印初始化状态信息
      */
@@ -210,11 +232,16 @@ public:
         // 从参数服务器获取配置参数
         nh_.param<std::string>("save_directory", save_directory_, "/tmp/saved_pcds");
         nh_.param<std::string>("topic_name", topic_name_, "/points_raw");
-        nh_.param<std::string>("path_topic", path_topic_, "/disco_double/mapping/path");
-        nh_.param<double>("timeout_duration", timeout_duration_, 10.0); // 默认10秒超时
+                nh_.param<std::string>("path_topic", path_topic_, "/disco_double/mapping/path");
+                nh_.param<double>("timeout_duration", timeout_duration_, 10.0); // 默认10秒超时
+                nh_.param<bool>("save_pcd", save_pcd_enabled_, true);
+                nh_.param<bool>("save_trajectory", save_traj_enabled_, true);
+                nh_.param<std::string>("timestamp_mode", timestamp_mode_, std::string("relative"));
         
-        // 初始化数据更新检测变量
-        last_data_change_time_ = ros::Time::now();
+    // 初始化数据更新检测变量（以数据集时间为准，初值设为零时间）
+    last_data_change_stamp_.fromSec(0.0);
+    last_header_stamp_.fromSec(0.0);
+    last_receive_wall_time_ = ros::Time::now();
         
         // 初始化位姿信息为默认值
         current_pose_.resize(7);
@@ -234,27 +261,39 @@ public:
             return;
         }
         
-        // 检查PCD子目录是否存在
-        if (!checkPCDDirectory(save_directory_))
+        // 若需要保存PCD，检查PCD子目录是否存在
+        if (save_pcd_enabled_)
         {
-            ROS_ERROR("PCD subdirectory does not exist. Exiting.");
+            if (!checkPCDDirectory(save_directory_))
+            {
+                ROS_ERROR("PCD subdirectory does not exist. Exiting.");
+                ros::shutdown();
+                return;
+            }
+        }
+
+        // 如果两个开关都关闭，则无需继续运行
+        if (!save_pcd_enabled_ && !save_traj_enabled_)
+        {
+            ROS_WARN("Both save_pcd and save_trajectory are disabled. Nothing to do. Exiting.");
             ros::shutdown();
             return;
         }
         
-        // 设置pose文件路径
-        pose_file_ = save_directory_ + "/pose.json";
-        
-        // 打开pose文件
-        pose_stream_.open(pose_file_.c_str(), std::ios::out);
-        if (!pose_stream_.is_open())
+        // 若需要保存轨迹，设置并打开 TUM 轨迹文件（.txt 纯文本）
+        if (save_traj_enabled_)
         {
-            ROS_ERROR("Cannot open pose file: %s", pose_file_.c_str());
-            ros::shutdown();
-            return;
+            // TUM 行格式：timestamp tx ty tz qx qy qz qw
+            trajectory_file_ = save_directory_ + "/trajectory.txt";
+            trajectory_stream_.open(trajectory_file_.c_str(), std::ios::out);
+            if (!trajectory_stream_.is_open())
+            {
+                ROS_ERROR("Cannot open TUM trajectory file: %s", trajectory_file_.c_str());
+                ros::shutdown();
+                return;
+            }
+            // 纯数值行输出（不写注释行），便于按 txt 读取
         }
-        
-        // pose文件不需要头部信息，直接开始写入pose数据
         
         // 订阅点云话题
         cloud_sub_ = nh_.subscribe(topic_name_, 10, &PCDSaver::cloudCallback, this);
@@ -269,7 +308,12 @@ public:
         ROS_INFO("  - Topic: %s", topic_name_.c_str());
         ROS_INFO("  - Path topic: %s", path_topic_.c_str());
         ROS_INFO("  - Save directory: %s", save_directory_.c_str());
-        ROS_INFO("  - Pose file: %s", pose_file_.c_str());
+        ROS_INFO("  - Save PCD: %s", save_pcd_enabled_ ? "true" : "false");
+        ROS_INFO("  - Save trajectory: %s", save_traj_enabled_ ? "true" : "false");
+        if (save_traj_enabled_)
+            ROS_INFO("  - TUM trajectory: %s", trajectory_file_.c_str());
+        if (save_traj_enabled_)
+            ROS_INFO("  - Timestamp mode: %s (relative: first=0, then delta; absolute: dataset time)", timestamp_mode_.c_str());
         ROS_INFO("  - Timeout duration: %.1f seconds", timeout_duration_);
         ROS_INFO("Waiting for point cloud messages...");
     }
@@ -280,9 +324,9 @@ public:
      */
     ~PCDSaver()
     {
-        if (pose_stream_.is_open())
+        if (trajectory_stream_.is_open())
          {
-             pose_stream_.close();
+             trajectory_stream_.close();
          }
         ROS_INFO("Saved %d PCD files total.", file_counter_);
     }
@@ -301,12 +345,14 @@ public:
     {
         try
         {
-            // 更新最后接收消息的时间
-            last_msg_time_ = ros::Time::now();
+            // 更新最后接收消息时间（本地/ROS时间，用于无消息回退判据）
+            last_receive_wall_time_ = ros::Time::now();
+            // 记录数据集绝对时间戳（来自消息）
+            last_header_stamp_ = cloud_msg->header.stamp;
             if (!received_first_msg_)
             {
                 received_first_msg_ = true;
-                ROS_INFO("Received first point cloud message. Starting timeout monitoring.");
+                ROS_INFO("Received first point cloud message. Starting timeout monitoring (dataset time).");
             }
             
             // 转换ROS消息到PCL点云
@@ -319,7 +365,7 @@ public:
             {
                 // 数据发生变化，重置计数器并更新时间
                 same_data_count_ = 0;
-                last_data_change_time_ = ros::Time::now();
+                last_data_change_stamp_ = cloud_msg->header.stamp;
                 last_cloud_size_ = current_cloud_size;
             }
             else
@@ -337,33 +383,67 @@ public:
                 }
             }
             
-            // 只有当数据发生变化时才保存文件
-            if (same_data_count_ == 0)
+            // 只有当数据发生变化时才记录（防重复）
+            bool should_record_frame = (same_data_count_ == 0);
+            if (should_record_frame)
             {
-                // 生成文件名
-                std::string filename = generateFileName(file_counter_);
-                std::string full_path = save_directory_ + "/pcd/" + filename;
-                
-                // 保存PCD文件
-                if (pcl::io::savePCDFileBinary(full_path, *pcl_cloud) == -1)
+                bool saved_any = false;
+
+                // 保存PCD文件（可选）
+                std::string filename;
+                if (save_pcd_enabled_)
                 {
-                    ROS_ERROR("Failed to save PCD file: %s", full_path.c_str());
-                    return;
+                    filename = generateFileName(file_counter_);
+                    std::string full_path = save_directory_ + "/pcd/" + filename;
+                    if (pcl::io::savePCDFileBinary(full_path, *pcl_cloud) == -1)
+                    {
+                        ROS_ERROR("Failed to save PCD file: %s", full_path.c_str());
+                        return;
+                    }
+                    saved_any = true;
                 }
-                
-                // 记录pose信息（格式：tx ty tz qw qx qy qz）
+
+                // 记录 TUM 轨迹（可选）：timestamp tx ty tz qx qy qz qw
+                if (save_traj_enabled_ && trajectory_stream_.is_open())
                 {
+                    // 根据模式生成时间戳（基于数据集 header.stamp）
+                    const double stamp_sec = cloud_msg->header.stamp.toSec();
+                    double ts_out = 0.0;
+                    if (timestamp_mode_ == "absolute")
+                    {
+                        ts_out = stamp_sec; // 数据集绝对时间戳
+                    }
+                    else // relative（默认）：第一帧0，后续为与上一帧的时间差
+                    {
+                        if (!prev_stamp_inited_)
+                        {
+                            ts_out = 0.0;
+                            prev_stamp_inited_ = true;
+                        }
+                        else
+                        {
+                            ts_out = stamp_sec - prev_stamp_sec_;
+                        }
+                        prev_stamp_sec_ = stamp_sec;
+                    }
                     std::lock_guard<std::mutex> lock(pose_mutex_);
-                    pose_stream_ << current_pose_[0] << " " << current_pose_[1] << " " << current_pose_[2] << " "
-                                << current_pose_[3] << " " << current_pose_[4] << " " << current_pose_[5] << " " << current_pose_[6] << std::endl;
-                    pose_stream_.flush(); // 确保立即写入文件
+                    trajectory_stream_ << std::fixed << std::setprecision(6)
+                                       << ts_out << " "
+                                       << current_pose_[0] << " " << current_pose_[1] << " " << current_pose_[2] << " "
+                                       << current_pose_[4] << " " << current_pose_[5] << " " << current_pose_[6] << " "
+                                       << current_pose_[3] << std::endl;
+                    trajectory_stream_.flush();
+                    saved_any = true;
                 }
-                
-                ROS_INFO("Saved: %s (points: %lu)", 
-                        filename.c_str(), 
-                        pcl_cloud->points.size());
-                
-                file_counter_++;
+
+                if (saved_any)
+                {
+                    if (save_pcd_enabled_)
+                        ROS_INFO("Saved PCD: %s (points: %lu)", filename.c_str(), pcl_cloud->points.size());
+                    if (save_traj_enabled_)
+                        ROS_INFO("Recorded trajectory sample");
+                    file_counter_++;
+                }
             }
             else
             {
@@ -408,6 +488,12 @@ int main(int argc, char** argv)
     ROS_INFO("  _topic_name: Point cloud topic to subscribe (default: /points_raw)");
     ROS_INFO("  _path_topic: Path topic to get pose data (default: /disco_double/mapping/path)");
     ROS_INFO("  _timeout_duration: Timeout in seconds to stop saving (default: 10.0)");
+    ROS_INFO("  _save_pcd: Whether to save PCD frames (default: true)");
+    ROS_INFO("  _save_trajectory: Whether to save TUM trajectory (default: true)");
+    ROS_INFO("  _timestamp_mode: 'relative' (default) or 'absolute' for trajectory timestamps");
+    ROS_INFO("Output files:");
+    ROS_INFO("  - PCD frames in <save_directory>/pcd/");
+    ROS_INFO("  - TUM trajectory at <save_directory>/trajectory.txt (timestamp tx ty tz qx qy qz qw)");
     
     // 异常处理保证程序健壮性
     try
